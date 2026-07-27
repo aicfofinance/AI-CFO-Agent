@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Environment variables with build-time validation | 1.3 | backend-engineer | 2026-07-27 |
+| Complete folder structure | 1.4 | backend-engineer | 2026-07-27 |
 
 ---
 
@@ -31,7 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| *(Step 1.3 moved to In Progress)* | | | |
+| *(Step 1.4 moved to In Progress)* | | | |
 | Environment variables with build-time validation | 1.3 | backend-engineer | 1.0 |
 | Complete folder structure | 1.4 | backend-engineer | 1.0 |
 
@@ -58,6 +58,7 @@
 | Next.js project scaffold | 1.0 | 2026-07-27 | pnpm dev starts, tsc exits 0, lint exits 0. commit 68831f7 |
 | TypeScript strict configuration | 1.1 | 2026-07-27 | noUncheckedIndexedAccess + exactOptionalPropertyTypes + aliases. commit 22147e0 |
 | Linting, formatting, and git hooks | 1.2 | 2026-07-27 | prettier, husky, lint-staged, ESLint security rules. commit bc733da |
+| Environment variables with build-time validation | 1.3 | 2026-07-27 | T3 env schema, build fails without DATABASE_URL. commit d1ab01b |
 
 ---
 
