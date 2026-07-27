@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Inngest dev server | 1.7 | backend-engineer | 2026-07-27 |
+| *(none)* | | | |
 
 ---
 
@@ -31,7 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| *(Step 1.7 moved to In Progress)* | | | |
+| *(all unblocked tasks complete — see Blocked for next actions)* | | | |
 | Environment variables with build-time validation | 1.3 | backend-engineer | 1.0 |
 | Complete folder structure | 1.4 | backend-engineer | 1.0 |
 
@@ -60,12 +60,41 @@
 | Linting, formatting, and git hooks | 1.2 | 2026-07-27 | prettier, husky, lint-staged, ESLint security rules. commit bc733da |
 | Environment variables with build-time validation | 1.3 | 2026-07-27 | T3 env schema, build fails without DATABASE_URL. commit d1ab01b |
 | Complete folder structure | 1.4 | 2026-07-27 | 122 stub files, all directories, SETUP.md, V1 remnant. tsc exits 0. |
+| Inngest dev server | 1.7 | 2026-07-27 | inngest@3.27, serve handler, sync-fan-out stub. tsc exits 0. commit 2ee96ba |
 
 ---
 
 ## Orchestrator Notes
 
 *This section is the persistent context layer between sessions. Update it whenever a session ends mid-task, a decision is made that affects agent assignments, or a dependency chain changes.*
+
+---
+
+### Session 1 — 2026-07-27
+
+**Completed:** Steps 1.0, 1.1, 1.2, 1.3, 1.4, 1.7 (all Phase 1 steps not requiring external credentials).
+
+**Stopped at:** Steps 1.5 and 1.6 — both blocked by external actions.
+
+**External actions required before next session can proceed:**
+1. **Supabase (for Step 1.5):** Go to supabase.com → create free project → copy three values to `.env.local`:
+   - `SUPABASE_URL` (e.g. `https://xyz.supabase.co`)
+   - `SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   Then run `/orchestrate` again — the orchestrator will detect these and start Step 1.5.
+
+2. **GitHub (for Step 1.6):** Push this repo to GitHub. Either:
+   - `gh repo create ai-cfo-agent --private --source=. --remote=origin --push` (if `gh auth status` succeeds)
+   - Or create a repo at github.com and push manually
+   Then run `/orchestrate` again.
+
+**Phase 2 interleaving reminder:** When Step 1.5 is done (Supabase connected), the next path is:
+- Step 3.0 (Drizzle ORM setup) depends on 1.5
+- Steps 2.0–2.2 depend on 1.5 (need Supabase auth)
+- Then Phase 3 (3.1–3.10), then 2.3–2.6
+The Phase 2/Phase 3 interleaving is documented in IMPLEMENTATION_PLAN.md.
+
+**Known issue to flag:** inngest@3.27.5 has a CRITICAL SECURITY warning recommending upgrade to >=3.54.0. The plan specifies 3.27 — a future session should decide whether to bump this before production.
 
 ---
 

@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Step 1.7 — Inngest dev server** — in progress
+**Step 1.5 — Supabase project and connection test** — BLOCKED: external action required (see Blocked Steps)
 
 ---
 
@@ -31,7 +31,7 @@
 
 | Phase | Title | Steps | Status |
 |---|---|---|---|
-| 1 | Foundation | 1.0–1.7 | 🔄 In progress (1.0–1.4 done, 1.7 in progress, 1.5/1.6 blocked external) |
+| 1 | Foundation | 1.0–1.7 | 🔄 In progress (1.0, 1.1, 1.2, 1.3, 1.4, 1.7 done; 1.5/1.6 blocked: external) |
 | 2 | Authentication & Multi-tenancy | 2.0–2.6 | 🔲 Not started |
 | 3 | Database Schema | 3.0–3.10 | 🔲 Not started |
 | 4 | QuickBooks Integration | 4.0–4.10 | 🔲 Not started |
@@ -58,6 +58,7 @@
 | 1.2 | Linting, formatting, and git hooks | 2026-07-27 | prettier, husky, lint-staged, ESLint security rules |
 | 1.3 | Environment variables with build-time validation | 2026-07-27 | T3 createEnv, build fails on missing DATABASE_URL |
 | 1.4 | Complete folder structure | 2026-07-27 | 122 stub files, all directories, SETUP.md, V1 remnant comment |
+| 1.7 | Inngest dev server | 2026-07-27 | inngest@3.27, client singleton, serve handler, sync-fan-out cron stub |
 
 ---
 
@@ -95,15 +96,15 @@
 
 ## Blocked Steps
 
-*(none — no steps are currently blocked)*
+### Blocked: Step 1.5 — Supabase project and connection test
+**Blocked by:** External action — requires creating a free Supabase account and project at supabase.com. Needs: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
+**Since:** 2026-07-27
+**Unblocked when:** User creates a Supabase free-tier project and adds the three keys to .env.local.
 
-> **Format for each entry:**
-> ```
-> ### Blocked: Step X.Y — [step name]
-> **Blocked by:** What is causing the block (a dependency, a credential, an external decision).
-> **Since:** YYYY-MM-DD
-> **Unblocked when:** What needs to happen for the step to proceed.
-> ```
+### Blocked: Step 1.6 — GitHub Actions CI pipeline
+**Blocked by:** External action — requires pushing this repo to GitHub and having `gh auth` configured. Also needs Google AI Studio API key (GOOGLE_AI_API_KEY) for the test CI run, or CI tests that don't call AI.
+**Since:** 2026-07-27
+**Unblocked when:** User pushes repo to GitHub (or `gh repo create` is run with auth configured).
 
 ---
 
