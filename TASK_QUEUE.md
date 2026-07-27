@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Complete folder structure | 1.4 | backend-engineer | 2026-07-27 |
+| Inngest dev server | 1.7 | backend-engineer | 2026-07-27 |
 
 ---
 
@@ -31,7 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| *(Step 1.4 moved to In Progress)* | | | |
+| *(Step 1.7 moved to In Progress)* | | | |
 | Environment variables with build-time validation | 1.3 | backend-engineer | 1.0 |
 | Complete folder structure | 1.4 | backend-engineer | 1.0 |
 
@@ -45,7 +45,7 @@
 |------|--------|------------|
 | Supabase project and connection test | 1.5 | Step 1.3 (env schema required before Supabase setup) + external action: create Supabase account at supabase.com |
 | GitHub Actions CI pipeline | 1.6 | Steps 1.2 and 1.3 (lint config and env schema must exist before CI references them) + external action: push repo to GitHub |
-| Inngest dev server | 1.7 | Step 1.4 (folder stubs must exist before Inngest function files are created) |
+| *(1.7 moved to In Progress — Step 1.4 dependency satisfied)* | | |
 
 > **External actions required before un-blocking:** Steps 1.5 and 1.6 require real-world setup outside the codebase (creating a Supabase project, pushing to GitHub). See the **Integration Credentials Status** section of PROGRESS.md for the full list of credentials to obtain. Until these accounts exist, these steps cannot complete their Definition of Done even if the code is written.
 
@@ -59,6 +59,7 @@
 | TypeScript strict configuration | 1.1 | 2026-07-27 | noUncheckedIndexedAccess + exactOptionalPropertyTypes + aliases. commit 22147e0 |
 | Linting, formatting, and git hooks | 1.2 | 2026-07-27 | prettier, husky, lint-staged, ESLint security rules. commit bc733da |
 | Environment variables with build-time validation | 1.3 | 2026-07-27 | T3 env schema, build fails without DATABASE_URL. commit d1ab01b |
+| Complete folder structure | 1.4 | 2026-07-27 | 122 stub files, all directories, SETUP.md, V1 remnant. tsc exits 0. |
 
 ---
 

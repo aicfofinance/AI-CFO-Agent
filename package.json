@@ -7,11 +7,13 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
+    "inngest:dev": "npx inngest-cli@latest dev -u http://localhost:3000/api/webhooks/inngest",
     "lint": "eslint",
     "prepare": "husky"
   },
   "dependencies": {
     "@t3-oss/env-nextjs": "0.11",
+    "inngest": "3.27",
     "next": "15.5.22",
     "react": "19.1.0",
     "react-dom": "19.1.0",

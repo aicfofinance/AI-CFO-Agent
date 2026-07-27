@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Step 1.1 — TypeScript strict configuration** — in progress
+**Step 1.7 — Inngest dev server** — in progress
 
 ---
 
@@ -31,7 +31,7 @@
 
 | Phase | Title | Steps | Status |
 |---|---|---|---|
-| 1 | Foundation | 1.0–1.7 | 🔲 Not started |
+| 1 | Foundation | 1.0–1.7 | 🔄 In progress (1.0–1.4 done, 1.7 in progress, 1.5/1.6 blocked external) |
 | 2 | Authentication & Multi-tenancy | 2.0–2.6 | 🔲 Not started |
 | 3 | Database Schema | 3.0–3.10 | 🔲 Not started |
 | 4 | QuickBooks Integration | 4.0–4.10 | 🔲 Not started |
@@ -54,6 +54,10 @@
 | Step | Title | Date | Notes |
 |------|-------|------|-------|
 | 1.0 | Next.js project scaffold | 2026-07-27 | Next.js 15, pnpm@9.15.4, tsc+lint exit 0, pnpm dev starts |
+| 1.1 | TypeScript strict configuration | 2026-07-27 | noUncheckedIndexedAccess, exactOptionalPropertyTypes, path aliases |
+| 1.2 | Linting, formatting, and git hooks | 2026-07-27 | prettier, husky, lint-staged, ESLint security rules |
+| 1.3 | Environment variables with build-time validation | 2026-07-27 | T3 createEnv, build fails on missing DATABASE_URL |
+| 1.4 | Complete folder structure | 2026-07-27 | 122 stub files, all directories, SETUP.md, V1 remnant comment |
 
 ---
 
