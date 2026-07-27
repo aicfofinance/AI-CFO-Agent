@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| *(none)* | | | |
+| Next.js project scaffold | 1.0 | backend-engineer | 2026-07-27 |
 
 ---
 
@@ -31,7 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Next.js project scaffold | 1.0 | backend-engineer | none |
+| *(Step 1.0 moved to In Progress)* | | | |
 | TypeScript strict configuration | 1.1 | backend-engineer | 1.0 |
 | Linting, formatting, and git hooks | 1.2 | backend-engineer | 1.0 |
 | Environment variables with build-time validation | 1.3 | backend-engineer | 1.0 |
