@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Step 1.0 — Next.js project scaffold** — not started
+**Step 1.1 — TypeScript strict configuration** — in progress
 
 ---
 
@@ -51,7 +51,9 @@
 
 ## Completed Steps
 
-*(none — no steps completed yet)*
+| Step | Title | Date | Notes |
+|------|-------|------|-------|
+| 1.0 | Next.js project scaffold | 2026-07-27 | Next.js 15, pnpm@9.15.4, tsc+lint exit 0, pnpm dev starts |
 
 ---
 
