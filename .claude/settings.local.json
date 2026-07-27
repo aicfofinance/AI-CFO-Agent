@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem \"$env:APPDATA\\\\Claude\" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName; Get-ChildItem \"$env:LOCALAPPDATA\\\\Claude\" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName)"
+    ]
+  }
+}
