@@ -80,3 +80,32 @@ handler at `src/app/api/webhooks/inngest/route.ts`.
 
 - `jobs/alerts/evaluate.ts` is a **V1 remnant** and must never be registered in the Inngest serve
   handler. Alert/anomaly detection was absorbed into `jobs/intelligence/run.ts` in V2.
+
+---
+
+## 5. auth.users foreign key constraints (apply by hand)
+
+`organization_members.user_id` and `organization_members.invited_by` reference `auth.users(id)` —
+Supabase's auth schema. That schema is **owned and managed by Supabase, not by Drizzle**. If these
+foreign keys were declared with `.references()` in `schema.ts`, drizzle-kit would attempt to bring
+the `auth` schema under migration management, which would corrupt the Supabase auth system.
+
+For that reason the two columns are declared as plain `uuid` columns in `schema.ts`, and their
+foreign-key constraints to `auth.users` are added **manually via the Supabase SQL Editor** once,
+immediately after `pnpm db:migrate` has created the `organization_members` table:
+
+```sql
+-- Run once after pnpm db:migrate, in the Supabase SQL Editor:
+ALTER TABLE organization_members
+  ADD CONSTRAINT organization_members_user_id_fkey
+  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+ALTER TABLE organization_members
+  ADD CONSTRAINT organization_members_invited_by_fkey
+  FOREIGN KEY (invited_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+```
+
+- Run this **once** per environment. It is idempotent only if the constraints do not already exist;
+  re-running it after the constraints exist raises a duplicate-object error, which is safe to ignore.
+- Like the RLS policies in §3, these statements live outside the Drizzle migration flow on purpose:
+  anything that touches the Supabase `auth` schema is a reviewed manual step.

@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Step 3.0 — Drizzle ORM setup** — in progress
+**Step 3.1 — Identity and access schema** — in progress
 
 ---
 
@@ -60,6 +60,7 @@
 | 1.4 | Complete folder structure | 2026-07-27 | 122 stub files, all directories, SETUP.md, V1 remnant comment |
 | 1.7 | Inngest dev server | 2026-07-27 | inngest@3.27, client singleton, serve handler, sync-fan-out cron stub |
 | 1.5 | Supabase project and connection test | 2026-07-28 | Code complete, tsc+lint clean. DB DoD blocked by corp firewall (ports 5432/6543). Supabase HTTPS confirmed reachable. Will re-verify in CI. |
+| 3.0 | Drizzle ORM setup | 2026-07-28 | drizzle-orm@0.36, drizzle-kit@0.27. client.ts exports db (pooler) and dbDirect (direct). drizzle.config.ts at root. db:generate exits 0. drizzle-kit studio pending CI. |
 
 ---
 

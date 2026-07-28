@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Drizzle ORM setup | 3.0 | backend-engineer | 2026-07-28 |
+| Identity and access schema | 3.1 | backend-engineer | 2026-07-28 |
 
 ---
 
@@ -31,7 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| *(Step 3.0 moved to In Progress; Phase 2 steps unblocked pending email verification)* | | | |
+| *(3.1 in progress; 3.2 will be unlocked when 3.1 completes)* | | | |
 
 ---
 
@@ -57,6 +57,7 @@
 | Complete folder structure | 1.4 | 2026-07-27 | 122 stub files, all directories, SETUP.md, V1 remnant. tsc exits 0. |
 | Inngest dev server | 1.7 | 2026-07-27 | inngest@3.27, serve handler, sync-fan-out stub. tsc exits 0. commit 2ee96ba |
 | Supabase project and connection test | 1.5 | 2026-07-28 | Code complete, tsc+lint exit 0. DB DoD pending — corp. firewall blocks 5432/6543; Supabase HTTPS reachable. commit 578d4ad |
+| Drizzle ORM setup | 3.0 | 2026-07-28 | drizzle-orm@0.36, drizzle-kit@0.27, client.ts (db+dbDirect), drizzle.config.ts, db:generate exits 0. drizzle-kit studio pending CI (network). commit ce6b945 |
 
 ---
 
