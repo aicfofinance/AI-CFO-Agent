@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Connections and sync schema | 3.2 | backend-engineer | 2026-07-28 |
+| Financial data schema (DECIMAL enforced) | 3.3 | backend-engineer | 2026-07-28 |
 
 ---
 
@@ -59,6 +59,7 @@
 | Supabase project and connection test | 1.5 | 2026-07-28 | Code complete, tsc+lint exit 0. DB DoD pending — corp. firewall blocks 5432/6543; Supabase HTTPS reachable. commit 578d4ad |
 | Drizzle ORM setup | 3.0 | 2026-07-28 | drizzle-orm@0.36, drizzle-kit@0.27, client.ts (db+dbDirect), drizzle.config.ts, db:generate exits 0. drizzle-kit studio pending CI (network). commit ce6b945 |
 | Identity and access schema | 3.1 | 2026-07-28 | organizations + organization_members, idx_organizations_slug UNIQUE, idx_org_members_user_org UNIQUE. auth.users FKs deferred to SETUP.md §5. Migration 0000_watery_mystique.sql generated. DB pending CI. commit 15f3292 |
+| Connections and sync schema | 3.2 | 2026-07-28 | connections (16 cols), sync_jobs, data_quality_log. idx_connections_one_accounting_per_org partial UNIQUE enforces QB/Xero exclusivity. Migration 0001_flippant_metal_master.sql. DB pending CI. commit 26c9488 |
 
 ---
 

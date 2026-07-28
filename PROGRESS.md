@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Step 3.2 — Connections and sync schema** — in progress
+**Step 3.3 — Financial data schema (DECIMAL enforced)** — in progress
 
 ---
 
@@ -62,6 +62,7 @@
 | 1.5 | Supabase project and connection test | 2026-07-28 | Code complete, tsc+lint clean. DB DoD blocked by corp firewall (ports 5432/6543). Supabase HTTPS confirmed reachable. Will re-verify in CI. |
 | 3.0 | Drizzle ORM setup | 2026-07-28 | drizzle-orm@0.36, drizzle-kit@0.27. client.ts exports db (pooler) and dbDirect (direct). drizzle.config.ts at root. db:generate exits 0. drizzle-kit studio pending CI. |
 | 3.1 | Identity and access schema | 2026-07-28 | organizations + organization_members tables. auth.users FKs deferred to manual SQL (SETUP.md §5). Migration 0000_watery_mystique.sql. DB apply pending CI. |
+| 3.2 | Connections and sync schema | 2026-07-28 | connections, sync_jobs, data_quality_log. Partial UNIQUE idx_connections_one_accounting_per_org. Migration 0001_flippant_metal_master.sql. DB apply pending CI. |
 
 ---
 
