@@ -321,3 +321,62 @@ export const transactions = pgTable(
       .where(sql`${t.vendorName} IS NOT NULL`),
   ],
 );
+
+/**
+ * Pre-computed period rollups powering the dashboard fast path. One row per
+ * (org, period_start, period_type). The nightly sync recomputes these via
+ * backend-engineer's `recomputeSnapshots()` so the dashboard and trend charts
+ * read a single indexed row instead of aggregating the whole `transactions`
+ * table on every request.
+ *
+ * All seven monetary columns are DECIMAL(15,2) — never a float type (CLAUDE.md).
+ * Drizzle serializes DECIMAL/NUMERIC columns to JS strings and the value must
+ * stay a string across the API boundary. They are nullable because a snapshot
+ * for a period with no data of a given kind (e.g. no AR balance yet) leaves the
+ * column NULL rather than fabricating a zero.
+ *
+ * `expense_by_category` and `revenue_by_category` are JSONB `{category: amount}`
+ * maps — a denormalized cache of the DECIMAL source of truth in `transactions`,
+ * not the authoritative monetary store.
+ *
+ * `period_type` is VARCHAR, not a Postgres enum (enums are forbidden by
+ * CLAUDE.md); it is one of `month`, `quarter`, `year`.
+ *
+ * `org_id` cascades from `organizations` like every other org-scoped table.
+ * `sync_job_id` FK to `sync_jobs` has NO cascade so a snapshot survives the
+ * pruning of the sync job that produced it, and is nullable because a manual
+ * recompute is not attached to a sync job.
+ */
+export const financialSnapshots = pgTable(
+  "financial_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+    periodType: varchar("period_type", { length: 10 }).notNull(),
+    totalRevenue: decimal("total_revenue", { precision: 15, scale: 2 }),
+    totalExpenses: decimal("total_expenses", { precision: 15, scale: 2 }),
+    netProfit: decimal("net_profit", { precision: 15, scale: 2 }),
+    cashPosition: decimal("cash_position", { precision: 15, scale: 2 }),
+    arBalance: decimal("ar_balance", { precision: 15, scale: 2 }),
+    expenseByCategory: jsonb("expense_by_category"),
+    revenueByCategory: jsonb("revenue_by_category"),
+    priorPeriodRevenue: decimal("prior_period_revenue", { precision: 15, scale: 2 }),
+    priorPeriodExpenses: decimal("prior_period_expenses", { precision: 15, scale: 2 }),
+    // No cascade: a snapshot outlives the sync job that produced it.
+    syncJobId: uuid("sync_job_id").references(() => syncJobs.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // Dashboard fast path: the latest snapshot for a given period. Unique so a
+    // recompute upserts the single row per (org, period_start, period_type).
+    uniqueIndex("idx_snapshots_org_period").on(t.orgId, t.periodStart, t.periodType),
+    // Trend chart: last 7 months of monthly snapshots — partial, monthly only.
+    index("idx_snapshots_org_monthly")
+      .on(t.orgId, t.periodStart.desc())
+      .where(sql`${t.periodType} = 'month'`),
+  ],
+);

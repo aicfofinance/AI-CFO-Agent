@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Step 3.3 — Financial data schema (DECIMAL enforced)** — in progress
+**Step 3.4 — Financial snapshots schema** — in progress
 
 ---
 
@@ -63,6 +63,7 @@
 | 3.0 | Drizzle ORM setup | 2026-07-28 | drizzle-orm@0.36, drizzle-kit@0.27. client.ts exports db (pooler) and dbDirect (direct). drizzle.config.ts at root. db:generate exits 0. drizzle-kit studio pending CI. |
 | 3.1 | Identity and access schema | 2026-07-28 | organizations + organization_members tables. auth.users FKs deferred to manual SQL (SETUP.md §5). Migration 0000_watery_mystique.sql. DB apply pending CI. |
 | 3.2 | Connections and sync schema | 2026-07-28 | connections, sync_jobs, data_quality_log. Partial UNIQUE idx_connections_one_accounting_per_org. Migration 0001_flippant_metal_master.sql. DB apply pending CI. |
+| 3.3 | Financial data schema (DECIMAL enforced) | 2026-07-28 | accounts + transactions. amount/amount_base/current_balance all numeric(15,2). All 6 tx indexes. Migration 0002_normal_ben_urich.sql. DB apply pending CI. |
 
 ---
 
