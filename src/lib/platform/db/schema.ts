@@ -6,6 +6,7 @@ import {
   date,
   decimal,
   index,
+  inet,
   integer,
   jsonb,
   pgTable,
@@ -939,5 +940,102 @@ export const cashFlowProjections = pgTable(
     index("idx_cashflow_projections_risk")
       .on(t.orgId, t.riskDate)
       .where(sql`${t.riskDate} IS NOT NULL`),
+  ],
+);
+
+/**
+ * Append-only compliance audit log. One row per consent event a user records
+ * (accepting the "not financial advice" acknowledgement or the Terms of
+ * Service). It is APPEND-ONLY by policy — no UPDATE or DELETE is ever permitted;
+ * a changed consent produces a new row so the full history is preserved for
+ * legal defensibility. The immutability is enforced at the RLS layer (Step 3.9),
+ * not by a Drizzle constraint.
+ *
+ * `consent_type` and `product_version` are VARCHAR, not Postgres enums (enums are
+ * forbidden by CLAUDE.md). `consent_type` is one of `not_financial_advice`,
+ * `terms_of_service`. `consent_text` is TEXT (unbounded) — it stores the exact
+ * verbatim copy the user agreed to, which must never be truncated.
+ *
+ * Unlike every other org-scoped table, `org_id` here has NO foreign key to
+ * `organizations`: consent records are legal artifacts that must survive the
+ * deletion of the org they were captured under (BACKEND_STRUCTURE.md lists no FK
+ * for consent_log.org_id — this is intentional retention, not an omission).
+ * `user_id` references Supabase's `auth.users(id)` and follows the same pattern
+ * as every other auth.users column — a plain `uuid` with no Drizzle
+ * `.references()`; its FK is added manually via the Supabase SQL Editor (see
+ * SETUP.md §5) with ON DELETE CASCADE.
+ *
+ * `ip_address` uses the Postgres native `INET` type (nullable) — the source IP
+ * captured from the request headers at the moment of consent.
+ */
+export const consentLog = pgTable(
+  "consent_log",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    // No FK: consent records are retained even if the org is deleted.
+    orgId: uuid("org_id").notNull(),
+    // `auth.users(id)` FK — plain uuid; constraint added manually (SETUP.md §5).
+    userId: uuid("user_id").notNull(),
+    consentType: varchar("consent_type", { length: 50 }).notNull(),
+    consentText: text("consent_text").notNull(),
+    productVersion: varchar("product_version", { length: 20 }).notNull(),
+    consentedAt: timestamp("consented_at", { withTimezone: true }).defaultNow().notNull(),
+    // Postgres native INET type (drizzle-orm 0.36 `inet` from pg-core). Nullable —
+    // captured from the request headers when available.
+    ipAddress: inet("ip_address"),
+  },
+  (t) => [
+    // Consent history for an org, newest first (compliance export).
+    index("idx_consent_log_org").on(t.orgId, t.consentedAt.desc()),
+    // A single user's consent history across orgs, newest first.
+    index("idx_consent_log_user").on(t.userId, t.consentedAt.desc()),
+  ],
+);
+
+/**
+ * Scaffolds the P2 accounting-firm portal: a row links a firm organization to a
+ * client organization the firm may access. It is created in V1 (even though the
+ * portal ships in P2) so the RLS policies in `rls-policies.sql` can reference it
+ * from day one — `get_accessible_org_ids()` (Step 3.9) unions a user's own orgs
+ * with the client orgs reachable through this table.
+ *
+ * The `firm_not_own_client` CHECK constraint (`firm_org_id != client_org_id`)
+ * enforces at the database layer that an organization can never be listed as its
+ * own client — satisfying the Step 3.8 Definition of Done.
+ *
+ * `access_level` is VARCHAR, not a Postgres enum (enums are forbidden by
+ * CLAUDE.md); it defaults to `read` and is one of `read`, `admin`.
+ *
+ * Both `firm_org_id` and `client_org_id` cascade from `organizations`: deleting
+ * either org removes the link. `invited_by` references Supabase's
+ * `auth.users(id)` — a plain `uuid` with no Drizzle `.references()`; its FK is
+ * added manually via the Supabase SQL Editor (see SETUP.md §5) with
+ * ON DELETE SET NULL so a link survives the deletion of the inviting user.
+ * `accepted_at` is NULL until the client accepts the firm's invitation.
+ */
+export const firmClients = pgTable(
+  "firm_clients",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    firmOrgId: uuid("firm_org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    clientOrgId: uuid("client_org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    accessLevel: varchar("access_level", { length: 20 }).default("read").notNull(),
+    // `auth.users(id)` FK — plain uuid; constraint added manually (SETUP.md §5).
+    invitedBy: uuid("invited_by"),
+    invitedAt: timestamp("invited_at", { withTimezone: true }).defaultNow().notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // An org may never be its own client (Step 3.8 DoD).
+    check("firm_not_own_client", sql`${t.firmOrgId} != ${t.clientOrgId}`),
+    // One link per (firm, client) pair — UNIQUE, prevents duplicate invitations.
+    uniqueIndex("idx_firm_clients_pair").on(t.firmOrgId, t.clientOrgId),
+    // Reverse lookup: which firms can access a given client org.
+    index("idx_firm_clients_client").on(t.clientOrgId),
   ],
 );

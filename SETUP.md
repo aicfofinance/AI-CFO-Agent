@@ -168,3 +168,27 @@ ALTER TABLE action_drafts
   ADD CONSTRAINT action_drafts_user_id_fkey
   FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 ```
+
+`consent_log.user_id` and `firm_clients.invited_by` (added in Step 3.8 with the two compliance/P2
+tables) each reference `auth.users(id)` and follow the identical pattern: they are declared as plain
+`uuid` columns in `schema.ts` (no Drizzle `.references()`), and their foreign keys are added
+**once**, immediately after `pnpm db:migrate` has created the `consent_log` and `firm_clients`
+tables. The two differ in delete semantics: `consent_log.user_id` uses `ON DELETE CASCADE` so that
+deleting a user removes their personal consent rows, while `firm_clients.invited_by` uses
+`ON DELETE SET NULL` so that deleting the inviting user preserves the firm-client link with a null
+inviter rather than cascading the link away. Note that `consent_log.org_id` and both org columns on
+`firm_clients` are handled by Drizzle (`consent_log.org_id` intentionally carries **no** FK so
+consent records survive org deletion; `firm_clients.firm_org_id` / `client_org_id` cascade from
+`organizations`), so no manual step is required for those:
+
+```sql
+-- consent_log.user_id → auth.users(id) ON DELETE CASCADE
+ALTER TABLE consent_log
+  ADD CONSTRAINT consent_log_user_id_fkey
+  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- firm_clients.invited_by → auth.users(id) ON DELETE SET NULL
+ALTER TABLE firm_clients
+  ADD CONSTRAINT firm_clients_invited_by_fkey
+  FOREIGN KEY (invited_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+```

@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Intelligence engine schema (V2 new tables) | 3.7 | backend-engineer | 2026-07-28 |
+| Compliance and P2 schema | 3.8 | backend-engineer | 2026-07-28 |
 
 ---
 
