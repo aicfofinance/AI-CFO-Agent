@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Identity and access schema | 3.1 | backend-engineer | 2026-07-28 |
+| Connections and sync schema | 3.2 | backend-engineer | 2026-07-28 |
 
 ---
 
@@ -31,7 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| *(3.1 in progress; 3.2 will be unlocked when 3.1 completes)* | | | |
+| *(3.2 in progress; 3.3–3.10 unlock in sequence)* | | | |
 
 ---
 
@@ -58,6 +58,7 @@
 | Inngest dev server | 1.7 | 2026-07-27 | inngest@3.27, serve handler, sync-fan-out stub. tsc exits 0. commit 2ee96ba |
 | Supabase project and connection test | 1.5 | 2026-07-28 | Code complete, tsc+lint exit 0. DB DoD pending — corp. firewall blocks 5432/6543; Supabase HTTPS reachable. commit 578d4ad |
 | Drizzle ORM setup | 3.0 | 2026-07-28 | drizzle-orm@0.36, drizzle-kit@0.27, client.ts (db+dbDirect), drizzle.config.ts, db:generate exits 0. drizzle-kit studio pending CI (network). commit ce6b945 |
+| Identity and access schema | 3.1 | 2026-07-28 | organizations + organization_members, idx_organizations_slug UNIQUE, idx_org_members_user_org UNIQUE. auth.users FKs deferred to SETUP.md §5. Migration 0000_watery_mystique.sql generated. DB pending CI. commit 15f3292 |
 
 ---
 
