@@ -502,3 +502,206 @@ export const queryLog = pgTable(
     index("idx_query_log_org_day").on(t.orgId, sql`(DATE(${t.createdAt}))`),
   ],
 );
+
+/**
+ * Threshold-based alert records surfaced to the user: a cash dip, an expense
+ * spike, a missing payment, or a revenue decline detected against the org's
+ * configured thresholds (see `alert_configs`). Each row is one triggered alert
+ * instance. `acknowledged_at IS NULL` means the alert is unread; `suppressed_until`
+ * implements a per-type cooldown so the same condition does not re-fire on every
+ * sync.
+ *
+ * `amount_before` and `amount_after` are DECIMAL(15,2) monetary columns — never a
+ * float type (CLAUDE.md). `change_percent` and `threshold_value` are DECIMAL(7,4)
+ * percentages stored as a fraction (0.2000 = 20%), not as a whole number. Drizzle
+ * serializes DECIMAL columns to JS strings and the value must stay a string across
+ * the API boundary; all arithmetic on them happens in SQL, never in JavaScript.
+ *
+ * `alert_type` and `severity` are VARCHAR, not Postgres enums (enums are forbidden
+ * by CLAUDE.md). `alert_type` is one of `cash_dip`, `expense_spike`,
+ * `missing_payment`, `revenue_decline`; `severity` is one of `low`, `medium`,
+ * `high`, `critical`.
+ *
+ * `org_id` cascades from `organizations`. `related_account_id` references
+ * `accounts(id)` as nullable optional context, with no cascade — matching
+ * `transactions.account_id`. `acknowledged_by` references Supabase's
+ * `auth.users(id)`; like every auth.users column it is a plain `uuid` whose FK is
+ * added manually via the Supabase SQL Editor (see SETUP.md §5). `metadata` is a
+ * JSONB bag of extra context that defaults to an empty object.
+ */
+export const alerts = pgTable(
+  "alerts",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    alertType: varchar("alert_type", { length: 30 }).notNull(),
+    severity: varchar("severity", { length: 20 }).default("medium").notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: text("description").notNull(),
+    amountBefore: decimal("amount_before", { precision: 15, scale: 2 }),
+    amountAfter: decimal("amount_after", { precision: 15, scale: 2 }),
+    changePercent: decimal("change_percent", { precision: 7, scale: 4 }),
+    thresholdValue: decimal("threshold_value", { precision: 7, scale: 4 }),
+    relatedAccountId: uuid("related_account_id").references(() => accounts.id),
+    relatedCategory: varchar("related_category", { length: 50 }),
+    triggeredAt: timestamp("triggered_at", { withTimezone: true }).defaultNow().notNull(),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    // `auth.users(id)` FK — plain uuid; constraint added manually (SETUP.md §5).
+    acknowledgedBy: uuid("acknowledged_by"),
+    suppressedUntil: timestamp("suppressed_until", { withTimezone: true }),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // Unread alerts for an org, newest first — partial, only unacknowledged rows.
+    index("idx_alerts_org_unread")
+      .on(t.orgId, t.triggeredAt.desc())
+      .where(sql`${t.acknowledgedAt} IS NULL`),
+    // Suppression lookup by type — partial, only rows currently in cooldown.
+    index("idx_alerts_org_type_suppressed")
+      .on(t.orgId, t.alertType, t.suppressedUntil)
+      .where(sql`${t.suppressedUntil} IS NOT NULL`),
+  ],
+);
+
+/**
+ * Per-org configuration for each threshold-based alert type: whether it is
+ * enabled, the numeric threshold that trips it, and whether it emails. Exactly one
+ * row per (org, alert_type) — enforced by the `idx_alert_configs_org_type` UNIQUE
+ * index. The intelligence engine (Phase 6) reads `threshold_value` from this table
+ * when evaluating conditions such as the expense-spike ratio.
+ *
+ * `threshold_value` is a DECIMAL(7,4) percentage stored as a fraction
+ * (0.2000 = 20%), never a float and never a whole number (CLAUDE.md). Drizzle
+ * serializes it to a JS string.
+ *
+ * `alert_type` is VARCHAR, not a Postgres enum (enums are forbidden by CLAUDE.md);
+ * it matches the `alerts.alert_type` domain. `org_id` cascades from
+ * `organizations`. `updated_by` references Supabase's `auth.users(id)` — a plain
+ * `uuid` whose FK is added manually via the Supabase SQL Editor (see SETUP.md §5).
+ * This table has no `created_at` column by design — only `updated_at`, which
+ * tracks the last edit to the configuration.
+ */
+export const alertConfigs = pgTable(
+  "alert_configs",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    alertType: varchar("alert_type", { length: 30 }).notNull(),
+    isEnabled: boolean("is_enabled").default(true).notNull(),
+    thresholdValue: decimal("threshold_value", { precision: 7, scale: 4 }).notNull(),
+    emailNotifications: boolean("email_notifications").default(true).notNull(),
+    // `auth.users(id)` FK — plain uuid; constraint added manually (SETUP.md §5).
+    updatedBy: uuid("updated_by"),
+    // `updated_at` is maintained by a Postgres trigger applied manually (see
+    // SETUP.md); Drizzle only sets the initial default here.
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // One config per (org, alert_type). UNIQUE — satisfies the Step 3.6 DoD.
+    uniqueIndex("idx_alert_configs_org_type").on(t.orgId, t.alertType),
+  ],
+);
+
+/**
+ * Generated financial reports: a monthly summary or a custom-period report. The
+ * `status` column tracks the generation lifecycle (`pending` → `generating` →
+ * `ready` | `failed`); `generated_at` is set when it reaches `ready`, and the
+ * `generation_attempted_at` / `generation_error` pair records the last failed
+ * attempt. `content` holds the structured metrics as JSONB and
+ * `plain_text_summary` holds the AI-generated narrative.
+ *
+ * `report_type` and `status` are VARCHAR, not Postgres enums (enums are forbidden
+ * by CLAUDE.md). `report_type` is one of `monthly_summary`, `custom`; `status` is
+ * one of `pending`, `generating`, `ready`, `failed`.
+ *
+ * `org_id` cascades from `organizations`. `generated_by_user_id` references
+ * Supabase's `auth.users(id)` — a plain `uuid` whose FK is added manually via the
+ * Supabase SQL Editor (see SETUP.md §5); it is nullable because the monthly cron
+ * generates reports with no initiating user.
+ */
+export const reports = pgTable(
+  "reports",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    reportType: varchar("report_type", { length: 30 }).notNull(),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+    status: varchar("status", { length: 20 }).default("pending").notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true }),
+    generationAttemptedAt: timestamp("generation_attempted_at", { withTimezone: true }),
+    generationError: text("generation_error"),
+    content: jsonb("content"),
+    plainTextSummary: text("plain_text_summary"),
+    modelUsed: varchar("model_used", { length: 50 }),
+    tokensUsed: integer("tokens_used"),
+    // `auth.users(id)` FK — plain uuid; constraint added manually (SETUP.md §5).
+    generatedByUserId: uuid("generated_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // Report list for an org, newest period first.
+    index("idx_reports_org_date").on(t.orgId, t.periodStart.desc()),
+    // One report per (org, period_start, report_type) — UNIQUE, upsert on regen.
+    uniqueIndex("idx_reports_org_period_type").on(t.orgId, t.periodStart, t.reportType),
+  ],
+);
+
+/**
+ * One billing record per organization — enforced by the `idx_subscriptions_org`
+ * UNIQUE index (a one-to-one with `organizations`). Tracks the Stripe customer and
+ * subscription IDs (both NULL until the first upgrade off the trial tier), the
+ * plan tier and status, the current Stripe billing period, and the AI-query quota
+ * counters that `checkAndIncrementQuota()` reads and increments under a row lock.
+ *
+ * `plan_tier` and `status` are VARCHAR, not Postgres enums (enums are forbidden by
+ * CLAUDE.md). `plan_tier` is one of `trial`, `starter`, `growth`; `status` is one
+ * of `active`, `past_due`, `canceled`, `trialing`. Quota defaults to the trial
+ * allowance (`queries_limit = 20`); Starter = 500 and Growth = 2000 are applied by
+ * the Stripe webhook handler.
+ *
+ * `queries_used_this_period` and `queries_limit` are plain INTEGER counts (not
+ * monetary) and are safe to increment in SQL. `org_id` cascades from
+ * `organizations`.
+ */
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    stripeCustomerId: varchar("stripe_customer_id", { length: 100 }),
+    stripeSubscriptionId: varchar("stripe_subscription_id", { length: 100 }),
+    planTier: varchar("plan_tier", { length: 20 }).default("trial").notNull(),
+    status: varchar("status", { length: 20 }).default("active").notNull(),
+    currentPeriodStart: timestamp("current_period_start", { withTimezone: true }),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    queriesUsedThisPeriod: integer("queries_used_this_period").default(0).notNull(),
+    queriesLimit: integer("queries_limit").default(20).notNull(),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    // `updated_at` is maintained by a Postgres trigger applied manually (see
+    // SETUP.md); Drizzle only sets the initial default here.
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // One subscription per org. UNIQUE — satisfies the Step 3.6 DoD.
+    uniqueIndex("idx_subscriptions_org").on(t.orgId),
+    // Stripe webhook reverse lookup by customer — partial, only linked rows.
+    index("idx_subscriptions_stripe_customer")
+      .on(t.stripeCustomerId)
+      .where(sql`${t.stripeCustomerId} IS NOT NULL`),
+    // Stripe webhook reverse lookup by subscription — partial, only linked rows.
+    index("idx_subscriptions_stripe_sub")
+      .on(t.stripeSubscriptionId)
+      .where(sql`${t.stripeSubscriptionId} IS NOT NULL`),
+  ],
+);

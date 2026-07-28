@@ -123,3 +123,27 @@ ALTER TABLE conversations
 
 - `query_log.user_id` also holds an `auth.users(id)` value but — matching its `schema.ts` definition —
   intentionally has **no** foreign-key constraint (it is a lightweight audit column); do not add one.
+
+`alerts.acknowledged_by`, `alert_configs.updated_by`, and `reports.generated_by_user_id` (added in
+Step 3.6) each reference `auth.users(id)` and follow the identical pattern: they are declared as
+plain `uuid` columns in `schema.ts` (no Drizzle `.references()`), and their foreign keys are added
+**once**, immediately after `pnpm db:migrate` has created the `alerts`, `alert_configs`, and
+`reports` tables. All three use `ON DELETE SET NULL` so that deleting a user preserves the alert,
+config, and report history with a null actor rather than cascading those rows away:
+
+```sql
+-- alerts.acknowledged_by → auth.users(id) ON DELETE SET NULL
+ALTER TABLE alerts
+  ADD CONSTRAINT alerts_acknowledged_by_fkey
+  FOREIGN KEY (acknowledged_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- alert_configs.updated_by → auth.users(id) ON DELETE SET NULL
+ALTER TABLE alert_configs
+  ADD CONSTRAINT alert_configs_updated_by_fkey
+  FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- reports.generated_by_user_id → auth.users(id) ON DELETE SET NULL
+ALTER TABLE reports
+  ADD CONSTRAINT reports_generated_by_user_id_fkey
+  FOREIGN KEY (generated_by_user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+```

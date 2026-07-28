@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| AI and conversation schema | 3.5 | backend-engineer | 2026-07-28 |
+| Feature schema (alerts, billing, reports) | 3.6 | backend-engineer | 2026-07-28 |
 
 ---
 
