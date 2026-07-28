@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Step 3.8 — Compliance and P2 schema** — in progress
+**Step 3.9 — RLS policies and isolation function** — in progress
 
 ---
 
@@ -33,7 +33,7 @@
 |---|---|---|---|
 | 1 | Foundation | 1.0–1.7 | 🔄 In progress (1.0, 1.1, 1.2, 1.3, 1.4, 1.7 done; 1.5/1.6 blocked: external) |
 | 2 | Authentication & Multi-tenancy | 2.0–2.6 | 🔲 Not started |
-| 3 | Database Schema | 3.0–3.10 | 🔲 Not started |
+| 3 | Database Schema | 3.0–3.10 | 🔄 In progress (3.0–3.8 done; 3.9 in progress) |
 | 4 | QuickBooks Integration | 4.0–4.10 | 🔲 Not started |
 | 5 | Financial Data Layer + Cash Flow Projection | 5.0–5.9 | 🔲 Not started |
 | 6 | Proactive Intelligence Engine | 6.0–6.12 | 🔲 Not started |
@@ -64,6 +64,11 @@
 | 3.1 | Identity and access schema | 2026-07-28 | organizations + organization_members tables. auth.users FKs deferred to manual SQL (SETUP.md §5). Migration 0000_watery_mystique.sql. DB apply pending CI. |
 | 3.2 | Connections and sync schema | 2026-07-28 | connections, sync_jobs, data_quality_log. Partial UNIQUE idx_connections_one_accounting_per_org. Migration 0001_flippant_metal_master.sql. DB apply pending CI. |
 | 3.3 | Financial data schema (DECIMAL enforced) | 2026-07-28 | accounts + transactions. amount/amount_base/current_balance all numeric(15,2). All 6 tx indexes. Migration 0002_normal_ben_urich.sql. DB apply pending CI. |
+| 3.4 | Financial snapshots schema | 2026-07-28 | financial_snapshots. 7 monetary DECIMAL(15,2) cols, 2 JSONB cols, partial monthly idx. Migration 0003_clever_frog_thor.sql. DB apply pending CI. |
+| 3.5 | Conversations, messages, query log schema | 2026-07-28 | conversations + messages (TEXT content) + query_log. auth.users FKs in SETUP.md §5. Migration 0004_material_beast.sql. DB apply pending CI. |
+| 3.6 | Alerts, reports, subscriptions schema | 2026-07-28 | alerts + alert_configs (UNIQUE) + reports (UNIQUE) + subscriptions (UNIQUE). DECIMAL(7,4) percentages. Migration 0005_ordinary_the_spike.sql. DB apply pending CI. |
+| 3.7 | Intelligence engine schema | 2026-07-28 | intelligence_runs + findings (CHECK headline<=120) + action_drafts + cash_flow_projections. Migration 0006_narrow_mordo.sql. DB apply pending CI. |
+| 3.8 | Compliance and P2 schema | 2026-07-28 | consent_log (inet, no org FK) + firm_clients (firm_not_own_client CHECK). All 21 tables. Migration 0007_tiny_pixie.sql. DB apply pending CI. commit dfddb51 |
 
 ---
 

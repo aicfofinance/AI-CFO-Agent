@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Compliance and P2 schema | 3.8 | backend-engineer | 2026-07-28 |
+| RLS policies and isolation function | 3.9 | backend-engineer | 2026-07-28 |
 
 ---
 
@@ -31,7 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| *(3.2 in progress; 3.3–3.10 unlock in sequence)* | | | |
+| *(unlocks after 3.9 completes)* | | | |
 
 ---
 
@@ -61,6 +61,11 @@
 | Identity and access schema | 3.1 | 2026-07-28 | organizations + organization_members, idx_organizations_slug UNIQUE, idx_org_members_user_org UNIQUE. auth.users FKs deferred to SETUP.md §5. Migration 0000_watery_mystique.sql generated. DB pending CI. commit 15f3292 |
 | Connections and sync schema | 3.2 | 2026-07-28 | connections (16 cols), sync_jobs, data_quality_log. idx_connections_one_accounting_per_org partial UNIQUE enforces QB/Xero exclusivity. Migration 0001_flippant_metal_master.sql. DB pending CI. commit 26c9488 |
 | Financial data schema (DECIMAL enforced) | 3.3 | 2026-07-28 | accounts + transactions. amount/amount_base/current_balance all numeric(15,2). All 6 tx indexes incl. 2 partial. Migration 0002_normal_ben_urich.sql. DB pending CI. commit d340e55 |
+| Financial snapshots schema | 3.4 | 2026-07-28 | financial_snapshots. 7 monetary DECIMAL(15,2) cols, 2 JSONB cols, partial monthly idx. Migration 0003_clever_frog_thor.sql. DB pending CI. |
+| Conversations, messages, query log schema | 3.5 | 2026-07-28 | conversations + messages (content TEXT) + query_log. auth.users FKs in SETUP.md §5. Migration 0004_material_beast.sql. DB pending CI. |
+| Alerts, reports, subscriptions schema | 3.6 | 2026-07-28 | alerts + alert_configs (UNIQUE org+type) + reports (UNIQUE org+period+type) + subscriptions (UNIQUE org). DECIMAL(7,4) for percentages. Migration 0005_ordinary_the_spike.sql. DB pending CI. |
+| Intelligence engine schema | 3.7 | 2026-07-28 | intelligence_runs + findings (CHECK headline<=120) + action_drafts + cash_flow_projections. findings_headline_max_120 CHECK in generated SQL. Migration 0006_narrow_mordo.sql. DB pending CI. |
+| Compliance and P2 schema | 3.8 | 2026-07-28 | consent_log (inet ip_address, no org FK) + firm_clients (firm_not_own_client CHECK). Migration 0007_tiny_pixie.sql. All 21 tables now defined. DB pending CI. commit dfddb51 |
 
 ---
 

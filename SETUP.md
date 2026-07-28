@@ -192,3 +192,24 @@ ALTER TABLE firm_clients
   ADD CONSTRAINT firm_clients_invited_by_fkey
   FOREIGN KEY (invited_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 ```
+
+---
+
+## 6. RLS isolation functions (`get_accessible_org_ids` / `get_writable_org_ids`)
+
+`rls-policies.sql` (§3) delegates all tenant resolution to two helper functions:
+
+- **`get_accessible_org_ids()`** returns the org IDs the current user may **read** — the union of
+  the user's own orgs (`organization_members`) and any accepted firm-portal client orgs reachable
+  through `firm_clients` (`accepted_at IS NOT NULL`). Every `SELECT` policy filters on it.
+- **`get_writable_org_ids()`** returns the org IDs the user may **write** — the user's own orgs
+  only, so a firm accountant can read client data but never mutate it. Every `INSERT`, `UPDATE`,
+  and `DELETE` policy checks it.
+
+Both are declared `SECURITY DEFINER` **by necessity, not for convenience**. They read
+`organization_members` (and `firm_clients`), which are themselves RLS-protected. A plain
+`SECURITY INVOKER` function called from a policy on those same tables would re-enter the policy and
+Postgres would abort with `infinite recursion detected in policy for relation`. Running as the
+definer bypasses RLS *inside the function body only*, breaking the loop while the policies still
+gate every row the user actually touches. `SET search_path = public` pins name resolution so the
+functions cannot be hijacked via a caller-controlled search path.
