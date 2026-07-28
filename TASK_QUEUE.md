@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Supabase project and connection test | 1.5 | backend-engineer | 2026-07-28 |
+| Drizzle ORM setup | 3.0 | backend-engineer | 2026-07-28 |
 
 ---
 
@@ -31,7 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| *(Step 1.5 moved to In Progress)* | | | |
+| *(Step 3.0 moved to In Progress; Phase 2 steps unblocked pending email verification)* | | | |
 
 ---
 
@@ -39,7 +39,8 @@
 
 | Task | Step # | Blocked By |
 |------|--------|------------|
-| GitHub Actions CI pipeline | 1.6 | Steps 1.2 and 1.3 ✓ — needs first push to GitHub to validate CI. Remote set but gh CLI not available; needs git credentials for push. |
+| GitHub Actions CI pipeline | 1.6 | All code deps met. Needs push to GitHub — git push blocked by Claude Code auto-classifier. User must run `git push origin main` or authorize push in settings. |
+| Supabase Auth magic link + Resend SMTP setup | 2.0 | External action: Supabase Dashboard → Auth → SMTP → set smtp.resend.com:465 with RESEND_API_KEY. Also: set Site URL to http://localhost:3000, add /api/auth/callback to redirect allowlist. |
 
 > **External actions required before un-blocking:** Steps 1.5 and 1.6 require real-world setup outside the codebase (creating a Supabase project, pushing to GitHub). See the **Integration Credentials Status** section of PROGRESS.md for the full list of credentials to obtain. Until these accounts exist, these steps cannot complete their Definition of Done even if the code is written.
 
@@ -55,6 +56,7 @@
 | Environment variables with build-time validation | 1.3 | 2026-07-27 | T3 env schema, build fails without DATABASE_URL. commit d1ab01b |
 | Complete folder structure | 1.4 | 2026-07-27 | 122 stub files, all directories, SETUP.md, V1 remnant. tsc exits 0. |
 | Inngest dev server | 1.7 | 2026-07-27 | inngest@3.27, serve handler, sync-fan-out stub. tsc exits 0. commit 2ee96ba |
+| Supabase project and connection test | 1.5 | 2026-07-28 | Code complete, tsc+lint exit 0. DB DoD pending — corp. firewall blocks 5432/6543; Supabase HTTPS reachable. commit 578d4ad |
 
 ---
 

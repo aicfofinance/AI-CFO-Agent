@@ -78,6 +78,14 @@ const eslintConfig = [
       "no-restricted-syntax": "off",
     },
   },
+  // Exception: drizzle.config.ts is a drizzle-kit tool config, not application code.
+  // It runs outside Next.js and cannot use the T3 env schema.
+  {
+    files: ["drizzle.config.ts"],
+    rules: {
+      "no-restricted-syntax": "off",
+    },
+  },
 ];
 
 export default eslintConfig;

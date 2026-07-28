@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Step 1.5 — Supabase project and connection test** — in progress
+**Step 3.0 — Drizzle ORM setup** — in progress
 
 ---
 
@@ -59,6 +59,7 @@
 | 1.3 | Environment variables with build-time validation | 2026-07-27 | T3 createEnv, build fails on missing DATABASE_URL |
 | 1.4 | Complete folder structure | 2026-07-27 | 122 stub files, all directories, SETUP.md, V1 remnant comment |
 | 1.7 | Inngest dev server | 2026-07-27 | inngest@3.27, client singleton, serve handler, sync-fan-out cron stub |
+| 1.5 | Supabase project and connection test | 2026-07-28 | Code complete, tsc+lint clean. DB DoD blocked by corp firewall (ports 5432/6543). Supabase HTTPS confirmed reachable. Will re-verify in CI. |
 
 ---
 
@@ -80,7 +81,19 @@
 
 ## Known Issues
 
-*(none — this section tracks discovered problems that need resolution, even if a fix has not been found yet)*
+### Issue 1 — Corporate firewall blocks Supabase DB ports
+**Discovered at step:** 1.5
+**Date:** 2026-07-28
+**Description:** Outbound TCP to ports 5432 (direct) and 6543 (pooler) is blocked on the Accenture corporate network. The Supabase HTTPS endpoint (port 443) is reachable. This blocks the live DB connection test in scripts/test-connection.ts and will block any step whose DoD requires a direct DB connection (drizzle-kit studio, migrations, seed scripts).
+**Impact:** Steps 1.5 (partial), 3.0 (partial), 3.1–3.10, 10.5 data export. All subsequent schema/migration steps need DB access.
+**Status:** Work-around — code is written correctly, DoD verification will happen via CI (GitHub Actions has unrestricted network access) or from a non-corporate network.
+
+### Issue 2 — Git push requires user authorization in Claude Code
+**Discovered at step:** 1.5
+**Date:** 2026-07-28
+**Description:** `git push origin main` is blocked by the Claude Code auto-mode classifier. The remote (https://github.com/aicfofinance/AI-CFO-Agent.git) is configured and git credentials (manager) are set. Step 1.6 (GitHub CI) requires a push.
+**Impact:** Step 1.6 DoD ("Push to GitHub. All four CI jobs pass.") cannot be verified without user authorization for the push command.
+**Status:** User must authorize the push command in Claude Code settings, or run `git push origin main` manually after each session.
 
 > **Format for each entry:**
 > ```
