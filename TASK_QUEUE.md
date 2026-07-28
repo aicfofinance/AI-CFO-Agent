@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| *(none)* | | | |
+| Supabase project and connection test | 1.5 | backend-engineer | 2026-07-28 |
 
 ---
 
@@ -31,11 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| *(all unblocked tasks complete — see Blocked for next actions)* | | | |
-| Environment variables with build-time validation | 1.3 | backend-engineer | 1.0 |
-| Complete folder structure | 1.4 | backend-engineer | 1.0 |
-
-> **Sequencing note:** Only Step 1.0 can begin immediately. Steps 1.1–1.4 all depend on 1.0 and must wait until it appears in Completed. The orchestrator should move 1.1–1.4 to In Progress only after 1.0 is done. Because all five steps are owned by backend-engineer and are sequential, they will typically be completed in a single session — but each step's Definition of Done must be verified independently before moving to the next.
+| *(Step 1.5 moved to In Progress)* | | | |
 
 ---
 
@@ -43,9 +39,7 @@
 
 | Task | Step # | Blocked By |
 |------|--------|------------|
-| Supabase project and connection test | 1.5 | Step 1.3 (env schema required before Supabase setup) + external action: create Supabase account at supabase.com |
-| GitHub Actions CI pipeline | 1.6 | Steps 1.2 and 1.3 (lint config and env schema must exist before CI references them) + external action: push repo to GitHub |
-| *(1.7 moved to In Progress — Step 1.4 dependency satisfied)* | | |
+| GitHub Actions CI pipeline | 1.6 | Steps 1.2 and 1.3 ✓ — needs first push to GitHub to validate CI. Remote set but gh CLI not available; needs git credentials for push. |
 
 > **External actions required before un-blocking:** Steps 1.5 and 1.6 require real-world setup outside the codebase (creating a Supabase project, pushing to GitHub). See the **Integration Credentials Status** section of PROGRESS.md for the full list of credentials to obtain. Until these accounts exist, these steps cannot complete their Definition of Done even if the code is written.
 

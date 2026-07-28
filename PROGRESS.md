@@ -17,13 +17,13 @@
 
 ## Current Phase
 
-**Phase 1: Foundation** — not started
+**Phase 1: Foundation** — in progress
 
 ---
 
 ## Current Step
 
-**Step 1.5 — Supabase project and connection test** — BLOCKED: external action required (see Blocked Steps)
+**Step 1.5 — Supabase project and connection test** — in progress
 
 ---
 
@@ -114,16 +114,16 @@ Track which sandbox and service credentials have been obtained. Every credential
 
 | Service | Credential needed | Step first needed | Status |
 |---|---|---|---|
-| Supabase | Project URL + Anon Key + Service Role Key | 1.5 | [ ] Not obtained |
-| QuickBooks Developer | Client ID + Client Secret + Sandbox Realm ID | 4.0 | [ ] Not obtained |
-| Xero Developer | Client ID + Client Secret + Sandbox Tenant ID | 12.0 | [ ] Not obtained |
+| Supabase | Project URL + Anon Key + Service Role Key | 1.5 | [x] In .env.local |
+| QuickBooks Developer | Client ID + Client Secret + Sandbox Realm ID | 4.0 | [x] In .env.local |
+| Xero Developer | Client ID + Client Secret + Sandbox Tenant ID | 12.0 | [x] In .env.local |
 | Plaid | Client ID + Secret (sandbox) | P2 — not needed for V1 | [ ] Skip for V1 |
 | Stripe | Secret Key (test mode) + Webhook Signing Secret | 13.0 | [ ] Not obtained |
 | Anthropic | API Key | 11.0 (optional — `AI_PROVIDER=google` works without it) | [ ] Not obtained |
-| Google AI Studio | API Key (free tier) | 11.0 | [ ] Not obtained |
-| Inngest | Signing Key + Event Key (dev) | 1.7 | [ ] Not obtained |
-| Resend | API Key + verified sender email | 2.0 | [ ] Not obtained |
-| Upstash | Redis REST URL + REST Token | 11.3 | [ ] Not obtained |
+| Google AI Studio | API Key (free tier) | 11.0 | [x] In .env.local (AI_PROVIDER=google) |
+| Inngest | Signing Key + Event Key (dev) | 1.7 | [ ] Not obtained (optional for dev) |
+| Resend | API Key + verified sender email | 2.0 | [x] In .env.local |
+| Upstash | Redis REST URL + REST Token | 11.3 | [x] In .env.local |
 
 > **Free-tier order of operations for day one:** Supabase (free, no card) → Google AI Studio (free, no card) → Resend (free, no card) → Inngest (free, no card). These four unlock Phases 1–6 and all development up to billing.
 
