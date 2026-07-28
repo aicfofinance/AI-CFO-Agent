@@ -86,6 +86,16 @@ const eslintConfig = [
       "no-restricted-syntax": "off",
     },
   },
+  // Exception: scripts/seed.ts is a standalone dev utility run with bare `tsx`,
+  // outside Next.js. Like drizzle.config.ts it cannot import the T3 env schema
+  // from @/lib/env (which pulls in Next.js internals), so it bootstraps its own
+  // DATABASE_URL from process.env after loading .env.local.
+  {
+    files: ["scripts/seed.ts"],
+    rules: {
+      "no-restricted-syntax": "off",
+    },
+  },
 ];
 
 export default eslintConfig;
