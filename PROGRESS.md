@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Step 3.4 — Financial snapshots schema** — in progress
+**Step 3.5 — AI and conversation schema** — in progress
 
 ---
 

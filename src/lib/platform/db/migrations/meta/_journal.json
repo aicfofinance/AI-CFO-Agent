@@ -29,6 +29,13 @@
       "when": 1785211616033,
       "tag": "0003_clever_frog_thor",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785212185290,
+      "tag": "0004_material_beast",
+      "breakpoints": true
     }
   ]
 }

@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Financial snapshots schema | 3.4 | backend-engineer | 2026-07-28 |
+| AI and conversation schema | 3.5 | backend-engineer | 2026-07-28 |
 
 ---
 

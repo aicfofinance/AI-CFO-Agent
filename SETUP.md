@@ -109,3 +109,17 @@ ALTER TABLE organization_members
   re-running it after the constraints exist raises a duplicate-object error, which is safe to ignore.
 - Like the RLS policies in §3, these statements live outside the Drizzle migration flow on purpose:
   anything that touches the Supabase `auth` schema is a reviewed manual step.
+
+`conversations.user_id` follows the identical pattern: it references `auth.users(id)` and is declared
+as a plain `uuid` column in `schema.ts` (no Drizzle `.references()`). Add its foreign key **once**,
+immediately after `pnpm db:migrate` has created the `conversations` table:
+
+```sql
+-- conversations.user_id → auth.users(id) ON DELETE CASCADE
+ALTER TABLE conversations
+  ADD CONSTRAINT conversations_user_id_fkey
+  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+```
+
+- `query_log.user_id` also holds an `auth.users(id)` value but — matching its `schema.ts` definition —
+  intentionally has **no** foreign-key constraint (it is a lightweight audit column); do not add one.

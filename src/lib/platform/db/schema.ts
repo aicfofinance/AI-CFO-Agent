@@ -380,3 +380,125 @@ export const financialSnapshots = pgTable(
       .where(sql`${t.periodType} = 'month'`),
   ],
 );
+
+/**
+ * A Q&A conversation thread between a user and the AI CFO. One row per thread;
+ * the individual turns live in `messages`. `title` is auto-generated from the
+ * first user message and `last_message_at` orders the history view (most-recent
+ * first).
+ *
+ * `org_id` cascades from `organizations` like every other org-scoped table.
+ * `user_id` references Supabase's `auth.users(id)`, which is NOT managed by
+ * Drizzle — the same pattern as `organization_members.user_id`. It is declared
+ * here as a plain `uuid` column; its FK to `auth.users` is added manually via
+ * the Supabase SQL Editor (see SETUP.md §5). Declaring the auth schema in
+ * Drizzle would cause drizzle-kit to try to manage it and corrupt Supabase auth.
+ */
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    title: varchar("title", { length: 255 }),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    // `updated_at` is maintained by a Postgres trigger applied manually (see
+    // SETUP.md); Drizzle only sets the initial default here.
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // History view ordering. BACKEND_STRUCTURE specifies
+    // (org_id, last_message_at DESC NULLS LAST); this is a plain index on
+    // (org_id, last_message_at) and the query applies
+    // `ORDER BY last_message_at DESC NULLS LAST` at runtime — Postgres still
+    // uses the index for the org_id filter.
+    index("idx_conversations_org_date").on(t.orgId, t.lastMessageAt),
+    // A single user's conversations within an org, newest first.
+    index("idx_conversations_user").on(t.orgId, t.userId, t.createdAt.desc()),
+  ],
+);
+
+/**
+ * One row per turn in a conversation. `content` is TEXT (unlimited length) —
+ * never VARCHAR: an AI answer can be arbitrarily long and truncating it would
+ * corrupt the conversation record.
+ *
+ * `conversation_id` cascades: deleting a conversation removes its messages.
+ * `org_id` is denormalized here (copied from the parent conversation) so RLS
+ * and org-scoped queries can filter without a join back to `conversations`. The
+ * token/timing columns are nullable telemetry populated by the streaming
+ * handler; a `user`-role message leaves them NULL.
+ *
+ * `role` is VARCHAR, not a Postgres enum (enums are forbidden by CLAUDE.md); it
+ * is one of `user`, `assistant`.
+ */
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id").notNull(),
+    role: varchar("role", { length: 20 }).notNull(),
+    content: text("content").notNull(),
+    modelUsed: varchar("model_used", { length: 50 }),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    responseTimeMs: integer("response_time_ms"),
+    wasCached: boolean("was_cached").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // Load a conversation's turns in chronological order. ASC is the Postgres
+    // default for an unqualified index column, matching BACKEND_STRUCTURE's
+    // (conversation_id, created_at ASC).
+    index("idx_messages_conversation").on(t.conversationId, t.createdAt),
+    // Org-wide message scan, newest first (usage analytics, data export).
+    index("idx_messages_org_content").on(t.orgId, t.createdAt.desc()),
+  ],
+);
+
+/**
+ * Per-request audit log for AI Q&A: one row per attempted query, whether it
+ * succeeded or failed. Drives quota/usage analytics and failure diagnostics.
+ *
+ * `user_id` references Supabase's `auth.users(id)` and — like
+ * `organization_members.user_id` — is a plain `uuid` with no Drizzle
+ * `.references()`; no auth.users FK constraint is declared for it at all.
+ * `message_id` references the assistant `messages` row this query produced, with
+ * NO cascade so the audit record survives message pruning; it is nullable
+ * because a failed query (quota, guardrail, timeout) never produces a message.
+ *
+ * `failure_reason` is VARCHAR, not a Postgres enum (enums are forbidden by
+ * CLAUDE.md); it is one of `quota_exceeded`, `api_error`, `api_timeout`,
+ * `guardrail_triggered`, `validation_error`.
+ */
+export const queryLog = pgTable(
+  "query_log",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    orgId: uuid("org_id").notNull(),
+    userId: uuid("user_id").notNull(),
+    // No cascade: an audit row outlives the message it references.
+    messageId: uuid("message_id").references(() => messages.id),
+    success: boolean("success").notNull(),
+    failureReason: varchar("failure_reason", { length: 50 }),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    responseTimeMs: integer("response_time_ms"),
+    modelUsed: varchar("model_used", { length: 50 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // Usage counting for the billing period — partial, successful queries only.
+    index("idx_query_log_org_period")
+      .on(t.orgId, t.createdAt.desc())
+      .where(sql`${t.success} = true`),
+    // Per-day rollups via a functional index on DATE(created_at).
+    index("idx_query_log_org_day").on(t.orgId, sql`(DATE(${t.createdAt}))`),
+  ],
+);
