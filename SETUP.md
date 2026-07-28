@@ -147,3 +147,24 @@ ALTER TABLE reports
   ADD CONSTRAINT reports_generated_by_user_id_fkey
   FOREIGN KEY (generated_by_user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 ```
+
+`findings.dismissed_by` and `action_drafts.user_id` (added in Step 3.7 with the four V2
+intelligence-engine tables) each reference `auth.users(id)` and follow the identical pattern: they
+are declared as plain `uuid` columns in `schema.ts` (no Drizzle `.references()`), and their foreign
+keys are added **once**, immediately after `pnpm db:migrate` has created the `findings` and
+`action_drafts` tables. The two differ in delete semantics: `findings.dismissed_by` uses
+`ON DELETE SET NULL` so that deleting a user preserves the finding's dismissal history with a null
+actor, while `action_drafts.user_id` uses `ON DELETE CASCADE` so that deleting a user removes the
+personal drafts they generated:
+
+```sql
+-- findings.dismissed_by → auth.users(id) ON DELETE SET NULL
+ALTER TABLE findings
+  ADD CONSTRAINT findings_dismissed_by_fkey
+  FOREIGN KEY (dismissed_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- action_drafts.user_id → auth.users(id) ON DELETE CASCADE
+ALTER TABLE action_drafts
+  ADD CONSTRAINT action_drafts_user_id_fkey
+  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+```

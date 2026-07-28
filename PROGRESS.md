@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Step 3.6 — Feature schema (alerts, billing, reports)** — in progress
+**Step 3.7 — Intelligence engine schema (V2 new tables)** — in progress
 
 ---
 

@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   boolean,
+  check,
   date,
   decimal,
   index,
@@ -703,5 +704,240 @@ export const subscriptions = pgTable(
     index("idx_subscriptions_stripe_sub")
       .on(t.stripeSubscriptionId)
       .where(sql`${t.stripeSubscriptionId} IS NOT NULL`),
+  ],
+);
+
+/**
+ * One row per execution of the proactive intelligence engine (Phase 6). Records
+ * what the nightly runner evaluated, when, and its outcome — used for
+ * observability, rate-limit enforcement, and audit. `findings_generated` counts
+ * the rows written to `findings` on this run.
+ *
+ * `run_type`, `status`, and `skipped_reason` are VARCHAR, not Postgres enums
+ * (enums are forbidden by CLAUDE.md). `run_type` is one of `scheduled`,
+ * `triggered`. `status` is one of `running`, `completed`, `failed`, `skipped`;
+ * it defaults to `running` (set at the top of the run before any analysis step).
+ * `skipped_reason` is populated only when `status = 'skipped'` and is one of
+ * `rate_limit`, `no_data`, `sync_failed`, `insufficient_history`.
+ *
+ * `completed_at`, `model_used`, `tokens_used`, and `skipped_reason` are nullable:
+ * a running, failed, or skipped run leaves `completed_at` NULL, and a run that
+ * never reached an AI call leaves the model/token telemetry NULL.
+ *
+ * `org_id` cascades from `organizations` like every other org-scoped table.
+ */
+export const intelligenceRuns = pgTable(
+  "intelligence_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    runType: varchar("run_type", { length: 20 }).notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    findingsGenerated: integer("findings_generated").default(0).notNull(),
+    status: varchar("status", { length: 20 }).default("running").notNull(),
+    modelUsed: varchar("model_used", { length: 50 }),
+    tokensUsed: integer("tokens_used"),
+    skippedReason: varchar("skipped_reason", { length: 30 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // Recent runs per org, newest first (intelligence engine monitoring).
+    index("idx_intelligence_runs_org_date").on(t.orgId, t.startedAt.desc()),
+    // Skipped runs by reason — partial, only rows currently in the skipped state.
+    index("idx_intelligence_runs_skipped")
+      .on(t.orgId, t.skippedReason)
+      .where(sql`${t.status} = 'skipped'`),
+  ],
+);
+
+/**
+ * AI-generated intelligence findings surfaced in the Intelligence Feed (Phase 6).
+ * One row per discrete finding. Findings move through a status lifecycle
+ * (`active` → `actioned` | `dismissed` | `expired`) and, once terminal, are
+ * immutable — a persisting condition produces a fresh finding on the next run.
+ *
+ * `headline` is VARCHAR(120) AND carries an explicit CHECK constraint
+ * (`findings_headline_max_120`, `length(headline) <= 120`) — the length ceiling is
+ * enforced at the database layer per the Step 3.7 Definition of Done, not left to
+ * the VARCHAR limit alone. `detail` and `recommended_action` are TEXT (unbounded):
+ * a full explanation can be arbitrarily long and must never be truncated.
+ *
+ * `finding_type`, `severity`, `status`, and `dismiss_reason` are VARCHAR, not
+ * Postgres enums (enums are forbidden by CLAUDE.md). `finding_type` is one of
+ * `cash_flow_risk`, `anomaly`, `collections_opportunity`, `duplicate_subscription`,
+ * `margin_alert`. `severity` is one of `low`, `medium`, `high`, `critical`.
+ * `status` defaults to `active` and is one of `active`, `actioned`, `dismissed`,
+ * `expired`. `dismiss_reason` is one of `not_relevant`, `already_handled`,
+ * `incorrect`.
+ *
+ * `related_data` is a JSONB bag of finding-type-specific context (invoice IDs,
+ * vendor names, amount deltas) consumed by the agentic execution layer to
+ * pre-populate drafts; it defaults to an empty object and is NOT NULL.
+ *
+ * `expires_at` is set only for time-sensitive findings (a `cash_flow_risk`
+ * finding expires on its projected risk date); all other types leave it NULL so
+ * they persist until dismissed or actioned (CLAUDE.md — selective expiry). The
+ * `idx_findings_expiry` partial index backs the nightly expiry cleanup job.
+ *
+ * `org_id` cascades from `organizations`. `intelligence_run_id` references
+ * `intelligence_runs(id)` with NO cascade so a finding survives run pruning.
+ * `dismissed_by` references Supabase's `auth.users(id)`; like every auth.users
+ * column it is a plain `uuid` whose FK is added manually via the Supabase SQL
+ * Editor (see SETUP.md §5) with ON DELETE SET NULL.
+ */
+export const findings = pgTable(
+  "findings",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // No cascade: a finding outlives the intelligence run that produced it.
+    intelligenceRunId: uuid("intelligence_run_id")
+      .notNull()
+      .references(() => intelligenceRuns.id),
+    findingType: varchar("finding_type", { length: 30 }).notNull(),
+    severity: varchar("severity", { length: 20 }).notNull(),
+    headline: varchar("headline", { length: 120 }).notNull(),
+    detail: text("detail").notNull(),
+    recommendedAction: text("recommended_action"),
+    status: varchar("status", { length: 20 }).default("active").notNull(),
+    relatedData: jsonb("related_data").$type<Record<string, unknown>>().default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+    // `auth.users(id)` FK — plain uuid; constraint added manually (SETUP.md §5).
+    dismissedBy: uuid("dismissed_by"),
+    dismissReason: varchar("dismiss_reason", { length: 30 }),
+    actionedAt: timestamp("actioned_at", { withTimezone: true }),
+  },
+  (t) => [
+    // Headline length ceiling enforced at the DB layer (Step 3.7 DoD).
+    check("findings_headline_max_120", sql`length(${t.headline}) <= 120`),
+    // Intelligence Feed primary query: active findings for an org, severity-sorted.
+    index("idx_findings_org_active")
+      .on(t.orgId, t.severity, t.createdAt.desc())
+      .where(sql`${t.status} = 'active'`),
+    // Finding history and archive (/alerts screen).
+    index("idx_findings_org_all").on(t.orgId, t.createdAt.desc()),
+    // Finding type breakdown (anomaly engine monitoring).
+    index("idx_findings_org_type").on(t.orgId, t.findingType, t.createdAt.desc()),
+    // Expiry cleanup job — partial, only expirable active findings.
+    index("idx_findings_expiry")
+      .on(t.expiresAt)
+      .where(sql`${t.status} = 'active' AND ${t.expiresAt} IS NOT NULL`),
+  ],
+);
+
+/**
+ * Drafts produced by the agentic execution layer (Phase 9). One row per draft
+ * generation event; a finding may accumulate several drafts across regenerations.
+ * The product never sends on the user's behalf — `copied` is the terminal success
+ * state and there is deliberately no `sent` status (CLAUDE.md).
+ *
+ * `action_type` and `status` are VARCHAR, not Postgres enums (enums are forbidden
+ * by CLAUDE.md). `action_type` is one of `invoice_acceleration`,
+ * `subscription_cancellation`, `vendor_negotiation`. `status` defaults to `draft`
+ * and is one of `draft`, `approved`, `copied`, `rejected`. `draft_content` is TEXT
+ * (unbounded) — an email body must never be truncated.
+ *
+ * `org_id` cascades from `organizations`. `finding_id` references `findings(id)`
+ * with NO cascade so draft history survives finding cleanup. `user_id` references
+ * Supabase's `auth.users(id)`; like every auth.users column it is a plain `uuid`
+ * whose FK is added manually via the Supabase SQL Editor (see SETUP.md §5) with
+ * ON DELETE CASCADE. The `*_at` lifecycle timestamps are nullable and set as the
+ * draft advances through the review states.
+ */
+export const actionDrafts = pgTable(
+  "action_drafts",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // `auth.users(id)` FK — plain uuid; constraint added manually (SETUP.md §5).
+    userId: uuid("user_id").notNull(),
+    // No cascade: a draft outlives the finding it acts on.
+    findingId: uuid("finding_id")
+      .notNull()
+      .references(() => findings.id),
+    actionType: varchar("action_type", { length: 30 }).notNull(),
+    draftContent: text("draft_content").notNull(),
+    recipientEmail: varchar("recipient_email", { length: 255 }),
+    recipientName: varchar("recipient_name", { length: 255 }),
+    subjectLine: varchar("subject_line", { length: 255 }).notNull(),
+    status: varchar("status", { length: 20 }).default("draft").notNull(),
+    modelUsed: varchar("model_used", { length: 50 }),
+    tokensUsed: integer("tokens_used"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    copiedAt: timestamp("copied_at", { withTimezone: true }),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+  },
+  (t) => [
+    // Active draft lookup for a finding — most recent draft first.
+    index("idx_action_drafts_finding").on(t.findingId, t.createdAt.desc()),
+    // Org-level draft history, newest first.
+    index("idx_action_drafts_org").on(t.orgId, t.createdAt.desc()),
+    // Conversion tracking: drafts by status (how many reach `copied`).
+    index("idx_action_drafts_status").on(t.orgId, t.status, t.createdAt.desc()),
+  ],
+);
+
+/**
+ * Point-in-time snapshots of the AI-generated cash flow forecast (Phase 5/6). One
+ * row per projection run per org per period length; the most recent row per
+ * (org, projection_period_days) is the current projection served by
+ * `GET /api/cashflow/projection`.
+ *
+ * `minimum_projected_balance` is DECIMAL(15,2) — never a float type (CLAUDE.md).
+ * It is a pre-computed monetary value enabling fast cliff-detection queries
+ * without parsing the JSONB. Drizzle serializes DECIMAL columns to JS strings and
+ * the value must stay a string across the API boundary; all arithmetic on it
+ * happens in SQL, never in JavaScript. It is nullable because a projection with no
+ * computed minimum leaves it NULL rather than fabricating a zero.
+ *
+ * `projected_data` is JSONB — an array of daily projection objects (date,
+ * projected balance, inflow/outflow sources, risk flags). `confidence_level` is
+ * VARCHAR, not a Postgres enum (enums are forbidden by CLAUDE.md); it is one of
+ * `low`, `medium`, `high` and is always surfaced to the caller per CLAUDE.md.
+ * `risk_date` is a DATE (no time component) marking when the minimum projected
+ * balance occurs, if below the org's buffer threshold; NULL otherwise.
+ *
+ * `org_id` cascades from `organizations`. `intelligence_run_id` references
+ * `intelligence_runs(id)` with NO cascade and is nullable — a projection may be
+ * generated independently of the main nightly run.
+ */
+export const cashFlowProjections = pgTable(
+  "cash_flow_projections",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // No cascade, nullable: a projection may run independently of a full run.
+    intelligenceRunId: uuid("intelligence_run_id").references(() => intelligenceRuns.id),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).defaultNow().notNull(),
+    projectionPeriodDays: integer("projection_period_days").notNull(),
+    projectedData: jsonb("projected_data").notNull(),
+    confidenceLevel: varchar("confidence_level", { length: 10 }).notNull(),
+    modelUsed: varchar("model_used", { length: 50 }),
+    minimumProjectedBalance: decimal("minimum_projected_balance", { precision: 15, scale: 2 }),
+    riskDate: date("risk_date"),
+  },
+  (t) => [
+    // Latest projection per org per period (served by /api/cashflow/projection).
+    index("idx_cashflow_projections_org_period").on(
+      t.orgId,
+      t.projectionPeriodDays,
+      t.generatedAt.desc(),
+    ),
+    // Risk date lookup — partial, only rows with a computed risk date.
+    index("idx_cashflow_projections_risk")
+      .on(t.orgId, t.riskDate)
+      .where(sql`${t.riskDate} IS NOT NULL`),
   ],
 );

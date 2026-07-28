@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Feature schema (alerts, billing, reports) | 3.6 | backend-engineer | 2026-07-28 |
+| Intelligence engine schema (V2 new tables) | 3.7 | backend-engineer | 2026-07-28 |
 
 ---
 
