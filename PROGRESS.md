@@ -17,13 +17,13 @@
 
 ## Current Phase
 
-**Phase 4: QuickBooks Integration** — in progress (Phase 3 complete)
+**Phase 7: Core Frontend — Layout and Design System** — starting (Phase 6 complete)
 
 ---
 
 ## Current Step
 
-**Step 6.3** — Anomaly detection intelligence step (in progress)
+**Step 7.0** — Tailwind v4 + CSS design tokens (starting)
 
 **Active Decision — Step 2.4 expedited:** Step 2.4 (`getRequestContext`) was implemented before Step 4.2 even though 2.0/2.1 are blocked (Supabase SMTP external action). The code and unit tests are complete; live auth verification awaits 2.0. All Phase 4 API endpoints depend on `getRequestContext()` so this unblocks the entire integration layer.
 
@@ -38,9 +38,8 @@
 | 3 | Database Schema | 3.0–3.10 | ✅ Complete |
 | 4 | QuickBooks Integration | 4.0–4.10 | ✅ Complete |
 | 5 | Financial Data Layer + Cash Flow Projection | 5.0–5.9 | ✅ Complete |
-| 5 | Financial Data Layer + Cash Flow Projection | 5.0–5.9 | 🔲 Not started |
-| 6 | Proactive Intelligence Engine | 6.0–6.12 | 🔲 Not started |
-| 7 | Core Frontend — Layout + Design System | 7.0–7.6 | 🔲 Not started |
+| 6 | Proactive Intelligence Engine | 6.0–6.12 | ✅ Complete |
+| 7 | Core Frontend — Layout + Design System | 7.0–7.6 | 🔄 In progress |
 | 8 | Intelligence Feed Dashboard | 8.0–8.6 | 🔲 Not started |
 | 9 | Agentic Execution Layer | 9.0–9.7 | 🔲 Not started |
 | 10 | Bench Refugee Onboarding | 10.0–10.4 | 🔲 Not started |

@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+:root {
+  /* Primary */
+  --primary-50: #EEF4FF;
+  --primary-100: #D9E9FF;
+  --primary-200: #B3D3FF;
+  --primary-300: #8DBDFF;
+  --primary-400: #67A7FF;
+  --primary-500: #2557A7;
+  --primary-600: #1E4890;
+  --primary-700: #183979;
+  --primary-800: #112A62;
+  --primary-900: #0A1B4B;
+
+  /* Gain */
+  --gain-50: #F0FBF4;
+  --gain-100: #DCFCE7;
+  --gain-200: #A7F3C7;
+  --gain-500: #16A34A;
+  --gain-600: #15803D;
+  --gain-700: #166534;
+
+  /* Loss */
+  --loss-50: #FFF1F1;
+  --loss-100: #FFE4E4;
+  --loss-200: #FFBDBD;
+  --loss-500: #E63946;
+  --loss-600: #C42030;
+  --loss-700: #A21520;
+
+  /* Warning */
+  --warning-50: #FFFBEB;
+  --warning-100: #FEF3C7;
+  --warning-200: #FDE68A;
+  --warning-500: #D97706;
+  --warning-600: #B45309;
+  --warning-700: #92400E;
+
+  /* Neutrals */
+  --gray-50:  #F8FAFC;
+  --gray-100: #F1F5F9;
+  --gray-200: #E2E8F0;
+  --gray-300: #CBD5E1;
+  --gray-400: #94A3B8;
+  --gray-500: #64748B;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1E293B;
+  --gray-900: #0F172A;
+  --gray-950: #020617;
+
+  /* Surfaces */
+  --surface-page: #F8FAFC;
+  --surface-card: #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --surface-sidebar: #F1F5F9;
+
+  /* Borders */
+  --border-default: #E2E8F0;
+  --border-subtle: #F1F5F9;
+  --border-strong: #CBD5E1;
+
+  /* Text */
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --text-disabled: #CBD5E1;
+  --text-inverse: #F8FAFC;
+  --text-link: #2557A7;
+  --text-link-hover: #1E4890;
+}
+
+@theme {
+  --color-primary-50: #EEF4FF;
+  --color-primary-100: #D9E9FF;
+  --color-primary-200: #B3D3FF;
+  --color-primary-300: #8DBDFF;
+  --color-primary-400: #67A7FF;
+  --color-primary-500: #2557A7;
+  --color-primary-600: #1E4890;
+  --color-primary-700: #183979;
+  --color-primary-800: #112A62;
+  --color-primary-900: #0A1B4B;
+
+  --color-gain-50: #F0FBF4;
+  --color-gain-100: #DCFCE7;
+  --color-gain-200: #A7F3C7;
+  --color-gain-500: #16A34A;
+  --color-gain-600: #15803D;
+  --color-gain-700: #166534;
+
+  --color-loss-50: #FFF1F1;
+  --color-loss-100: #FFE4E4;
+  --color-loss-200: #FFBDBD;
+  --color-loss-500: #E63946;
+  --color-loss-600: #C42030;
+  --color-loss-700: #A21520;
+
+  --color-warning-50: #FFFBEB;
+  --color-warning-100: #FEF3C7;
+  --color-warning-200: #FDE68A;
+  --color-warning-500: #D97706;
+  --color-warning-600: #B45309;
+  --color-warning-700: #92400E;
+
+  --color-gray-50: #F8FAFC;
+  --color-gray-100: #F1F5F9;
+  --color-gray-200: #E2E8F0;
+  --color-gray-300: #CBD5E1;
+  --color-gray-400: #94A3B8;
+  --color-gray-500: #64748B;
+  --color-gray-600: #475569;
+  --color-gray-700: #334155;
+  --color-gray-800: #1E293B;
+  --color-gray-900: #0F172A;
+  --color-gray-950: #020617;
+}
+
+/* Typography */
+body {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  background-color: var(--surface-page);
+  color: var(--text-primary);
+}
+
+/* Numeric font utility — use on all financial number elements */
+.font-numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Focus rings — every interactive element gets a visible ring */
+*:focus-visible {
+  outline: 2px solid var(--primary-500);
+  outline-offset: 2px;
+}
