@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import type {
   CashFlowProjection,
@@ -13,6 +13,8 @@ import {
 import { runAnomalyDetection, runMarginDetection } from "@/lib/financial/intelligence/anomaly";
 import { runArAgingAnalysis } from "@/lib/financial/intelligence/ar-aging-intelligence";
 import { runDuplicateSubscriptionScan } from "@/lib/financial/intelligence/duplicates";
+import type { EmailDispatchDecision } from "@/jobs/intelligence/email";
+import { computeEmailDispatch } from "@/jobs/intelligence/email";
 import { db } from "@/lib/platform/db/client";
 import {
   connections,
@@ -255,5 +257,46 @@ export const intelligenceRun = inngest.createFunction(
         .set({ lastIntelligenceRunAt: new Date() })
         .where(eq(connections.orgId, orgId));
     });
+
+    // ── Step 6.8: severity-gated intelligence email dispatch ───────────────────
+    // After findings are written, decide whether to dispatch `intelligence/email.
+    // requested`. Only `high`/`critical` findings warrant an email — `medium`/`low`
+    // are in-app only (CLAUDE.md — email only on high/critical). The severity read
+    // and the decision run inside a `step.run()`; `step.sendEvent` is then called at
+    // the top level (Inngest step tools must never be nested inside a `step.run()`
+    // callback). A run containing any `critical` finding emails immediately; a
+    // `high`-only run is delayed 2 hours via a future event `ts` so a later critical
+    // run can pre-empt with an urgent email. (`ts` is Inngest v3's mechanism for a
+    // future-scheduled event — there is no `delay`/`delaySeconds` field on a sent
+    // event payload.)
+    const emailDispatch = await step.run(
+      "check-email-severity",
+      async (): Promise<EmailDispatchDecision> => {
+        const highCritical = await db
+          .select({ severity: findings.severity })
+          .from(findings)
+          .where(
+            and(
+              eq(findings.orgId, orgId),
+              eq(findings.intelligenceRunId, runId),
+              sql`${findings.severity} IN ('high', 'critical')`,
+            ),
+          );
+
+        return computeEmailDispatch(highCritical.map((f) => f.severity));
+      },
+    );
+
+    if (emailDispatch.send) {
+      await step.sendEvent("send-intelligence-email", {
+        name: "intelligence/email.requested",
+        data: { orgId, runId },
+        // `delaySeconds === 0` (critical) → send now (omit `ts`); otherwise schedule
+        // the event 2 hours out.
+        ...(emailDispatch.delaySeconds > 0
+          ? { ts: Date.now() + emailDispatch.delaySeconds * 1000 }
+          : {}),
+      });
+    }
   },
 );

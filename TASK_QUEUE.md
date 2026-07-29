@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Finding storage and run completion | 6.7 | ai-engine-engineer | 2026-07-29 |
+| Intelligence email trigger | 6.8 | ai-engine-engineer | 2026-07-29 |
 
 ---
 
@@ -97,6 +97,7 @@
 | Margin deterioration detection | 6.4 | 2026-07-29 | runMarginDetection: MTD margin vs prior year. Skip if <12mo history. Same 429 skip contract. 17/17 tests. 86/86 total. tsc+lint exit 0. commit a5ca3bb |
 | AR aging collections opportunity step | 6.5 | 2026-07-29 | runArAgingAnalysis: collections_opportunity finding, relatedData.invoices[]. High severity at $5k+. 8 tests. 103/103. tsc+lint exit 0. commit 1768c9c |
 | Duplicate subscription scan | 6.6 | 2026-07-29 | runDuplicateSubscriptionScan: same vendor/diff accounts/within 10%. duplicate_subscription finding. 9 tests. 103/103. tsc+lint exit 0. commit 1768c9c |
+| Finding storage and run completion | 6.7 | 2026-07-29 | insertFindingDeduped: same-day dedup. mark-completed step: intelligence_runs.completed + connections.lastIntelligenceRunAt. 4 new tests. 107/107. tsc+lint exit 0. commit aade49c |
 
 ---
 
