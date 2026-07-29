@@ -23,8 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Start fresh + connect screen update | 10.2 | product-engineer | 2026-07-30 |
-| Data & Privacy settings UI | 10.5-ui | product-engineer | 2026-07-30 |
+| Onboarding sync waiting page | 10.3 | product-engineer | 2026-07-30 |
 
 ---
 
@@ -32,7 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| *(none — 10.3 unblocks after 10.2 completes)* | | | |
+| *(none — 10.4 unblocks after 10.3 completes)* | | | |
 
 ---
 
@@ -42,7 +41,7 @@
 |------|--------|------------|
 | GitHub Actions CI pipeline | 1.6 | All code deps met. Needs push to GitHub — git push blocked by Claude Code auto-classifier. User must run `git push origin main` or authorize push in settings. |
 | Live auth DoD verification | 2.0–2.6 | External action: Supabase Dashboard → Auth → SMTP → smtp.resend.com:465, username=resend, password=RESEND_API_KEY. Set Site URL=http://localhost:3000, add /api/auth/callback to redirect allowlist. Code is written. |
-| Onboarding sync waiting page | 10.3 | 10.2 (depends on 10.1→10.0) |
+| First intelligence brief screen | 10.4 | 10.3 |
 | First intelligence brief screen | 10.4 | 10.3, 8.1 (done) |
 | Billing / Stripe integration | 13.x | Stripe credentials not obtained |
 
@@ -148,6 +147,8 @@
 | Conversation history UI pages | 11.4-ui | 2026-07-30 | conversations/page.tsx: server component list, DataTimestamp, export-all anchor, empty-state CTA. conversations/[id]/page.tsx: client component Q&A transcript, UserMessage/AIResponse, copy-answer per assistant turn. 271/271 tests. tsc+lint exit 0. commit f819bd3 |
 | Refugee welcome page + CSV UI | 10.1-ui | 2026-07-30 | onboarding/refugee/page.tsx: headline + three path cards (CSV/connect/start-fresh). onboarding/csv/page.tsx: idle→uploading→success state machine, POST /api/connections/csv, persistent snapshot banner. 271/271 tests. tsc+lint exit 0. commit f819bd3 |
 | Data & Privacy export endpoint | 10.5-api | 2026-07-30 | GET /api/data/export: jszip@3.10.1, Upstash+in-process rate limit (1/hr/org), zip contains conversations/findings/action_drafts/reports/README.txt, org-slug filename, Retry-After header. 271/271 tests (4 new). tsc+lint exit 0. commit f819bd3 |
+| Start fresh + connect screen update | 10.2 | 2026-07-30 | onboarding/connect/page.tsx: QB+Xero provider cards, ShieldCheck sovereignty banner above options, CSV fallback. onboarding/start-fresh/page.tsx: 3-step ol, CTA→/connect. 271/271. tsc+lint exit 0. commit 335a71f |
+| Data & Privacy settings UI | 10.5-ui | 2026-07-30 | settings/account/page.tsx: Account section (auth/me), Data & Privacy section, Download your data button (blob URL), 429 surfaced verbatim. 271/271. tsc+lint exit 0. commit 335a71f |
 
 ---
 
@@ -161,17 +162,18 @@
 
 **Completed this session:** 11.4-ui, 10.1-ui, 10.5-api (all in parallel, commit f819bd3). 271/271 tests. tsc+lint exit 0.
 
-**Two tasks now in progress (parallel):**
-1. product-engineer → 10.2: start-fresh/page.tsx (three steps + CTA) + updated connect/page.tsx (data sovereignty statement above connect options)
-2. product-engineer → 10.5-ui: settings/account/page.tsx — add "Data & Privacy" section with "Download your data" button (calls GET /api/data/export as `<a href download>`); show 429 toast with "Try again after X" message
+**Current task:** product-engineer → 10.3: onboarding/sync/page.tsx — two-phase polling page.
 
-**Next after these complete:** 10.3 (onboarding/sync/page.tsx — waiting-for-sync screen) unblocks when 10.2 is done. Then 10.4 (first-brief screen).
+**Design decision for 10.3:** The spec says to check `meta.lastIntelligenceRunAt` in the intelligence feed for phase 2, but that field isn't in the feed meta. Instead, polling `GET /api/connections` for BOTH phases:
+- Phase 1: wait for `connections[0].syncStatus === 'success'`
+- Phase 2: wait for `connections[0].lastIntelligenceRunAt !== null`
+This avoids a backend change and uses the already-correct `ConnectionSummary` type.
+
+**Next after 10.3:** 10.4 (first-brief/page.tsx) unblocks immediately. Both are product-engineer tasks.
 
 **Key known state:**
-- onboarding/connect/page.tsx is a stub — 10.2 must update it (add data sovereignty statement above connect options)
-- onboarding/start-fresh/page.tsx is a stub — 10.2 must implement it fully
-- settings/account/page.tsx is a stub — 10.5-ui must implement it with Data & Privacy section
-- GET /api/data/export is now fully implemented (jszip, rate-limited 1/hr)
+- onboarding/sync/page.tsx is a stub — 10.3 must implement it
+- onboarding/first-brief/page.tsx is a stub — 10.4 must implement it
 
 ---
 
