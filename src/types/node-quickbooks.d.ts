@@ -23,6 +23,28 @@ declare module "node-quickbooks" {
   type QBCallback<T> = (err: unknown, result: T) => void;
 
   /**
+   * Criteria element for QB Query API filtering and pagination.
+   *
+   * Pass as an array to find* methods:
+   *   - Field/value/operator objects generate WHERE conditions.
+   *   - STARTPOSITION sets the 1-based starting offset (QB pagination is
+   *     1-based; the first page starts at position 1, not 0).
+   *   - MAXRESULTS caps the number of records returned (max 1000 per QB docs).
+   *
+   * Example:
+   *   [
+   *     { field: 'TxnDate', value: '2024-01-01', operator: '>=' },
+   *     { field: 'STARTPOSITION', value: 1 },
+   *     { field: 'MAXRESULTS', value: 1000 },
+   *   ]
+   */
+  type QBCriteriaItem =
+    | { field: "STARTPOSITION"; value: number }
+    | { field: "MAXRESULTS"; value: number }
+    | { field: "orderBy"; value: string }
+    | { field: string; value: string | number; operator?: string };
+
+  /**
    * Shape returned by getCompanyInfo().
    * Only the fields used by this project are typed; the QB API returns more.
    */
@@ -94,6 +116,63 @@ declare module "node-quickbooks" {
      *   `QueryResponse.Account` array on success.
      */
     findAccounts(criteria: Record<string, unknown>, callback: QBCallback<unknown>): void;
+
+    /**
+     * Transaction entity find methods — Step 4.6.
+     *
+     * All nine methods follow the same signature contract: accept criteria
+     * (either a plain object or a QBCriteriaItem array for pagination) and
+     * call back with the raw QB response. Result types are `unknown` here;
+     * concrete shapes (QBPurchase, QBInvoice, etc.) are defined locally in
+     * `src/lib/integrations/quickbooks/import.ts` which owns these types.
+     *
+     * Response shapes:
+     *   findPurchases    → result.QueryResponse.Purchase[]
+     *   findInvoices     → result.QueryResponse.Invoice[]
+     *   findPayments     → result.QueryResponse.Payment[]
+     *   findBills        → result.QueryResponse.Bill[]
+     *   findBillPayments → result.QueryResponse.BillPayment[]
+     *   findCreditMemos  → result.QueryResponse.CreditMemo[]
+     *   findJournalEntries → result.QueryResponse.JournalEntry[]
+     *   findDeposits     → result.QueryResponse.Deposit[]
+     *   findTransfers    → result.QueryResponse.Transfer[]
+     */
+    findPurchases(
+      criteria: QBCriteriaItem[] | Record<string, unknown>,
+      callback: QBCallback<unknown>,
+    ): void;
+    findInvoices(
+      criteria: QBCriteriaItem[] | Record<string, unknown>,
+      callback: QBCallback<unknown>,
+    ): void;
+    findPayments(
+      criteria: QBCriteriaItem[] | Record<string, unknown>,
+      callback: QBCallback<unknown>,
+    ): void;
+    findBills(
+      criteria: QBCriteriaItem[] | Record<string, unknown>,
+      callback: QBCallback<unknown>,
+    ): void;
+    findBillPayments(
+      criteria: QBCriteriaItem[] | Record<string, unknown>,
+      callback: QBCallback<unknown>,
+    ): void;
+    findCreditMemos(
+      criteria: QBCriteriaItem[] | Record<string, unknown>,
+      callback: QBCallback<unknown>,
+    ): void;
+    findJournalEntries(
+      criteria: QBCriteriaItem[] | Record<string, unknown>,
+      callback: QBCallback<unknown>,
+    ): void;
+    findDeposits(
+      criteria: QBCriteriaItem[] | Record<string, unknown>,
+      callback: QBCallback<unknown>,
+    ): void;
+    findTransfers(
+      criteria: QBCriteriaItem[] | Record<string, unknown>,
+      callback: QBCallback<unknown>,
+    ): void;
   }
 
   export = QuickBooks;

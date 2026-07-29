@@ -1,9 +1,9 @@
 # Task Queue
 ## AI CFO Agent
 
-**Last updated:** July 2026  
-**Current phase:** Phase 1 — Foundation  
-**Active agents:** 0  
+**Last updated:** 2026-07-29  
+**Current phase:** Phase 4 — QuickBooks Integration  
+**Active agents:** 1 (integration-engineer on 4.7)  
 
 ---
 
@@ -23,8 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| QB developer app setup (package install + auth.ts) | 4.0 | integration-engineer | 2026-07-28 |
-| OAuth token encryption utilities | 4.1 | backend-engineer | 2026-07-28 |
+| Transaction normalization | 4.7 | integration-engineer | 2026-07-29 |
 
 ---
 
@@ -32,7 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| QB OAuth initiate (read-only scopes) | 4.2 | integration-engineer | 4.0, 4.1, 3.2 |
+| Incremental sync logic | 4.8 | integration-engineer | 4.7 |
 
 ---
 
@@ -69,12 +68,44 @@
 | Compliance and P2 schema | 3.8 | 2026-07-28 | consent_log (inet ip_address, no org FK) + firm_clients (firm_not_own_client CHECK). Migration 0007_tiny_pixie.sql. All 21 tables now defined. DB pending CI. commit dfddb51 |
 | RLS policies and isolation function | 3.9 | 2026-07-28 | rls-policies.sql: get_accessible/writable_org_ids() SECURITY DEFINER, 21 ENABLE RLS, 80 policies. consent_log append-only. firm_clients OR clause. Apply via Supabase SQL Editor (SETUP.md §3). DB verify pending CI. commit a0bbf3c |
 | Seed data | 3.10 | 2026-07-28 | scripts/seed.ts: Demo Corp org, 4 alert_configs, 4 accounts, 636 tx (180 days), 7 monthly snapshots. All upserts. Monetary arithmetic in SQL. Live run pending CI (port 6543 blocked). commit 21d1503 |
+| QB developer app setup (package install + auth.ts) | 4.0 | 2026-07-29 | intuit-oauth@4.0.0 + node-quickbooks@2.0.5. createOAuthClient() reads from env. Ambient type decl for intuit-oauth. src/types/integrations.ts started. commit dbf5fdd |
+| OAuth token encryption utilities | 4.1 | 2026-07-29 | encryptToken/decryptToken AES-256-GCM, iv:authTag:ciphertext format. vitest@2.1 + vitest.config.ts added. 4/4 tests pass. commit dbf5fdd |
+| Session context utility (expedited) | 2.4 | 2026-07-29 | getRequestContext + requireAuth (discriminated AuthResult) + requireRole. RequestContextError typed 401/403/500. 3/3 tests pass. commit c1f21f0 |
+| QB OAuth initiate (PKCE + CSRF) | 4.2 | 2026-07-29 | PKCE S256 + CSRF state + httpOnly 120s cookie. intuit-oauth does not support PKCE natively; params appended manually. commit b80b370 |
+| QB OAuth callback handler | 4.3 | 2026-07-29 | CSRF validation, manual PKCE token exchange, scope enforcement, encryptToken, upsert connections, Inngest event, redirect logic. commit 6895ed8 |
+| QB API client factory | 4.4 | 2026-07-29 | getQuickBooksClient: decrypt, proactive refresh, rotating token write-back, auth_expired on failure. commit 99ce9b4 |
+| Chart of Accounts import | 4.5 | 2026-07-29 | importAccounts: upsert on (orgId,sourceSystem,externalId), dataQualityLog for malformed, no rawData (PII). commit 98ce403 |
+| Transaction import (initial 13-month pull) | 4.6 | 2026-07-29 | importTransactions: 9 QB entity types, paginated batches of 1000, onConflictDoUpdate dedup, 429 retry (30s), records_synced per batch. tsc+lint exit 0. |
 
 ---
 
 ## Orchestrator Notes
 
 *This section is the persistent context layer between sessions. Update it whenever a session ends mid-task, a decision is made that affects agent assignments, or a dependency chain changes.*
+
+---
+
+### Session 4 — 2026-07-29
+
+**Completed:** Steps 4.3, 4.4, 4.5, 4.6. Steps 4.2–4.6 all done.
+
+**4.6 note:** importTransactions handles 9 QB entity types (Purchases, Invoices, Payments, Bills, BillPayments, CreditMemos, JournalEntries, Deposits, Transfers). Paginated at 1000. onConflictDoUpdate on (orgId, sourceSystem, externalId). rawData=null (PII concern). 429 handled with 30s pause + 1 retry. normalizeQBCategory added to normalize.ts. QB type declarations added to src/types/node-quickbooks.d.ts. tsc+lint exit 0.
+
+**In progress:** Step 4.7 (transaction normalization — add QB TxnType mapping and 10-type unit tests to normalize.ts).
+
+**Next:** 4.7 → 4.8 (incremental sync) → 4.9 (Inngest job) → 4.10 (snapshot recompute). All 4 are integration-engineer tasks.
+
+### Session 3 — 2026-07-29
+
+**Completed:** Steps 4.0 and 4.1 (ran in parallel). Both passed tsc, lint, and vitest gates. commit dbf5fdd.
+
+**4.0 note:** intuit-oauth@4.0.4 does not exist in npm; 4.0.0 was installed instead. An ambient type declaration (`src/types/intuit-oauth.d.ts`) was created since the package ships no TypeScript types.
+
+**4.1 note:** vitest was not yet installed (Step 1.6 skipped). The backend-engineer bootstrapped vitest@2.1 + vitest.config.ts as part of 4.1 so the DoD could be met. When Step 1.6 is eventually picked up, reuse this infrastructure — just add @testing-library/react@16.3 and the CI pipeline.
+
+**In progress:** Step 4.2 (QB OAuth initiate). Delegated to integration-engineer.
+
+**Next:** After 4.2 completes → 4.3 (QB OAuth callback). After 4.3 → 4.4 (QB API client factory). Steps continue sequentially through 4.10.
 
 ---
 

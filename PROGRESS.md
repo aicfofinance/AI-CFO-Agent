@@ -23,7 +23,9 @@
 
 ## Current Step
 
-**Steps 4.0 + 4.1 (parallel)** — in progress
+**Step 4.7** — Transaction normalization (in progress)
+
+**Active Decision — Step 2.4 expedited:** Step 2.4 (`getRequestContext`) was implemented before Step 4.2 even though 2.0/2.1 are blocked (Supabase SMTP external action). The code and unit tests are complete; live auth verification awaits 2.0. All Phase 4 API endpoints depend on `getRequestContext()` so this unblocks the entire integration layer.
 
 ---
 
@@ -71,6 +73,14 @@
 | 3.8 | Compliance and P2 schema | 2026-07-28 | consent_log (inet, no org FK) + firm_clients (firm_not_own_client CHECK). All 21 tables. Migration 0007_tiny_pixie.sql. DB apply pending CI. commit dfddb51 |
 | 3.9 | RLS policies and isolation function | 2026-07-28 | rls-policies.sql: get_accessible/writable_org_ids() SECURITY DEFINER, 21 ENABLE RLS, 80 CREATE POLICY. consent_log append-only. Apply via Supabase SQL Editor per SETUP.md §3. DB verify pending CI. commit a0bbf3c |
 | 3.10 | Seed data | 2026-07-28 | scripts/seed.ts: Demo Corp, 4 alert_configs, 4 accounts, 636 tx, 7 snapshots. All upserts via onConflictDoUpdate. SQL arithmetic only. Live run pending CI. commit 21d1503 |
+| 4.0 | QuickBooks developer app setup | 2026-07-29 | intuit-oauth@4.0.0 (4.0.4 does not exist in npm) + node-quickbooks@2.0.5. createOAuthClient() from env. Ambient type decl. src/types/integrations.ts initialized. commit dbf5fdd |
+| 4.1 | OAuth token encryption utilities | 2026-07-29 | encryptToken/decryptToken AES-256-GCM. vitest@2.1 + vitest.config.ts bootstrapped (1.6 prerequisite). 4/4 tests pass. commit dbf5fdd |
+| 2.4 | Session context utility (expedited) | 2026-07-29 | getRequestContext + requireAuth (discriminated AuthResult) + requireRole. RequestContextError typed 401/403/500. 3/3 tests pass. commit c1f21f0 |
+| 4.2 | QB OAuth initiate (PKCE + CSRF) | 2026-07-29 | PKCE S256 + CSRF state + httpOnly 120s cookie. PKCE params appended manually (intuit-oauth doesn't support natively). Standard envelope. commit b80b370 |
+| 4.3 | QB OAuth callback handler | 2026-07-29 | CSRF validation, manual PKCE token exchange, scope enforcement, encryptToken before write, upsert connections, Inngest event. commit 6895ed8 |
+| 4.4 | QB API client factory | 2026-07-29 | getQuickBooksClient: decrypt, 5min proactive refresh, rotating token write-back, auth_expired on failure, no token values in logs. commit 99ce9b4 |
+| 4.5 | Chart of Accounts import | 2026-07-29 | importAccounts: upsert, dataQualityLog, no rawData (PII), parentAccountId deferred. commit 98ce403 |
+| 4.6 | Transaction import (initial 13-month pull) | 2026-07-29 | importTransactions: 9 QB entity types, paginated 1000, onConflictDoUpdate dedup, 429 retry (30s), records_synced per batch. tsc+lint exit 0. |
 
 ---
 

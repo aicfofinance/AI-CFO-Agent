@@ -80,3 +80,137 @@ export function normalizeAccountName(name: string | undefined | null): string | 
   if (trimmed.length === 0) return null;
   return trimmed.length > 255 ? trimmed.slice(0, 255) : trimmed;
 }
+
+// ─── Transaction category normalization (Step 4.6) ───────────────────────────
+
+/**
+ * QB field mapping for transaction categories.
+ *
+ * Source field                         Internal column         Null handling
+ * ──────────────────────────────────────────────────────────────────────────────
+ * AccountRef.name (root or line item)  transactions.category   no match → 'other'
+ * ItemRef.name (invoice line items)    transactions.category   fallback only
+ *
+ * Matching strategy:
+ *   1. `accountRefName` is scanned first against the ordered keyword list.
+ *   2. If `accountRefName` does not match, `itemRefName` is scanned as a fallback.
+ *   3. The first matching entry wins; entries are ordered from most-specific to
+ *      least-specific to prevent false positives (e.g., 'service charge' is
+ *      checked before the broader 'service' keyword).
+ *   4. If neither name matches any pattern, the function returns `'other'`.
+ *
+ * Callers are responsible for logging transactions where category = 'other'
+ * (and where a name was available but unrecognised) to `data_quality_log`.
+ * This ensures unmapped QB accounts are observable without being silently lost.
+ *
+ * Intentionally dropped QB category fields for V1:
+ *   - Sub-account names    Flattened to parent account name; sub-account detail
+ *                          not required for the 15-category schema.
+ *   - Tax-line details     Only the containing account name keyword is used;
+ *                          individual tax line code values are out of scope.
+ */
+
+/**
+ * Ordered list of QB account-name keyword patterns mapped to internal
+ * transaction categories.
+ *
+ * Ordering constraints:
+ *   - Multi-word phrases (e.g. 'contract labor') come before single keywords
+ *     that could partially match them (e.g. 'labor').
+ *   - 'service charge' precedes 'service' to prevent "Service Charge" from
+ *     falling through to 'revenue'.
+ *   - 'cost of goods' precedes both 'cost' and 'goods'.
+ */
+const QB_CATEGORY_PATTERNS: ReadonlyArray<{
+  readonly patterns: string[];
+  readonly category: string;
+}> = [
+  { patterns: ["advertising", "marketing"], category: "advertising_marketing" },
+  {
+    patterns: ["contract labor", "subcontract", "freelance", "contractor"],
+    category: "contractors",
+  },
+  { patterns: ["payroll", "salaries", "salary", "wages", "wage"], category: "payroll" },
+  { patterns: ["rent", "lease"], category: "rent_lease" },
+  // 'utilit' catches 'utility', 'utilities', 'utilitarian' etc.
+  {
+    patterns: [
+      "utilit",
+      "electric",
+      "gas and electric",
+      "water and sewer",
+      "telephone",
+      "internet",
+    ],
+    category: "utilities",
+  },
+  { patterns: ["insurance"], category: "insurance" },
+  { patterns: ["travel", "airfare", "lodging", "hotel"], category: "travel" },
+  { patterns: ["meals", "entertainment", "dining", "restaurant"], category: "meals_entertainment" },
+  // 'office supplies' must come before the broader 'supplies' to avoid
+  // false-matching "Janitorial Supplies" → 'office_supplies'.
+  { patterns: ["office supplies", "office supply", "stationery"], category: "office_supplies" },
+  {
+    patterns: ["software", "subscription", "saas", "computer and internet", "cloud service"],
+    category: "software_subscriptions",
+  },
+  // Multi-word bank-charge phrases before the bare 'service' keyword.
+  {
+    patterns: [
+      "bank charge",
+      "bank fee",
+      "service charge",
+      "service fee",
+      "merchant fee",
+      "processing fee",
+      "finance charge",
+      "payment processing",
+    ],
+    category: "bank_charges",
+  },
+  {
+    patterns: ["professional", "legal", "accounting", "audit", "consulting"],
+    category: "professional_services",
+  },
+  { patterns: ["tax", "license", "permit", "registration"], category: "taxes_licenses" },
+  // 'cost of goods' and its variants before any shorter keyword.
+  {
+    patterns: ["cost of goods", "cogs", "cost of sales"],
+    category: "cost_of_goods_sold",
+  },
+  // Broad income/revenue keywords — checked last to avoid short-circuiting
+  // more specific patterns above (e.g. 'service' also appears in bank charges).
+  { patterns: ["income", "revenue", "sales", "services"], category: "revenue" },
+];
+
+/**
+ * Maps a QB AccountRef name (and optional ItemRef name) to one of the 15
+ * internal transaction categories.
+ *
+ * Returns `'other'` when neither name matches any known pattern. The caller
+ * must log this case to `data_quality_log` when a non-null name was supplied,
+ * so unmapped QB account names are observable in the data quality dashboard.
+ *
+ * @param accountRefName - `AccountRef.name` from the QB transaction or line item.
+ *   This is the chart-of-accounts entry (e.g. "Advertising & Marketing").
+ * @param itemRefName    - `ItemRef.name` from invoice/credit-memo line items.
+ *   Checked as a fallback when `accountRefName` produces no match.
+ * @returns One of the 15 internal category strings or `'other'`.
+ */
+export function normalizeQBCategory(
+  accountRefName: string | undefined | null,
+  itemRefName?: string | undefined | null,
+): string {
+  for (const candidate of [accountRefName, itemRefName]) {
+    if (!candidate) continue;
+    const lower = candidate.toLowerCase();
+    for (const { patterns, category } of QB_CATEGORY_PATTERNS) {
+      for (const pattern of patterns) {
+        if (lower.includes(pattern)) {
+          return category;
+        }
+      }
+    }
+  }
+  return "other";
+}
