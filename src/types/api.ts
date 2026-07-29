@@ -31,6 +31,19 @@ export type AuthMeResponse = {
   timezone: string;
 };
 
+/**
+ * Response body of `POST /api/conversations`.
+ *
+ * `createdAt` is an ISO-8601 string (the DECIMAL-as-string rule is about money;
+ * timestamps serialize as ISO strings). This is the payload nested under the
+ * standard `{ data: T }` success envelope, not the envelope itself.
+ */
+export type ConversationCreateResponse = {
+  id: string;
+  title: string;
+  createdAt: string;
+};
+
 export type FinancialSummaryResponse = {
   currentMonth: {
     revenue: string;
