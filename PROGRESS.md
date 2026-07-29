@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Step 4.10** — Financial snapshots computation post-sync (in progress)
+**Step 5.0** — P&L calculation functions (in progress)
 
 **Active Decision — Step 2.4 expedited:** Step 2.4 (`getRequestContext`) was implemented before Step 4.2 even though 2.0/2.1 are blocked (Supabase SMTP external action). The code and unit tests are complete; live auth verification awaits 2.0. All Phase 4 API endpoints depend on `getRequestContext()` so this unblocks the entire integration layer.
 
@@ -36,7 +36,7 @@
 | 1 | Foundation | 1.0–1.7 | 🔄 In progress (1.0, 1.1, 1.2, 1.3, 1.4, 1.7 done; 1.5/1.6 blocked: external) |
 | 2 | Authentication & Multi-tenancy | 2.0–2.6 | 🔲 Not started |
 | 3 | Database Schema | 3.0–3.10 | ✅ Complete |
-| 4 | QuickBooks Integration | 4.0–4.10 | 🔄 In progress (4.0, 4.1 in progress) |
+| 4 | QuickBooks Integration | 4.0–4.10 | ✅ Complete |
 | 5 | Financial Data Layer + Cash Flow Projection | 5.0–5.9 | 🔲 Not started |
 | 6 | Proactive Intelligence Engine | 6.0–6.12 | 🔲 Not started |
 | 7 | Core Frontend — Layout + Design System | 7.0–7.6 | 🔲 Not started |
@@ -84,6 +84,7 @@
 | 4.7 | Transaction normalization | 2026-07-29 | normalizeTransactionType (16-type QB map, 'adjustment' fallback). normalize.test.ts 13/13 pass. No undefined categories. tsc+lint exit 0. |
 | 4.8 | Incremental sync logic | 2026-07-29 | incrementalSync: reads lastSyncedAt, guards auth_expired/disconnected, upserts via importAccounts+importTransactions(since). 20/20 vitest pass. tsc+lint exit 0. |
 | 4.9 | Inngest sync job with ordered steps | 2026-07-29 | syncFanOut (cron 0 */6 * * *) + syncSingleOrg (3 ordered steps: pull→recompute stub→intelligence event). NonRetriableError on auth_expired. Registered in inngest serve handler. tsc+lint exit 0. |
+| 4.10 | Financial snapshots computation post-sync | 2026-07-29 | recomputeSnapshots: 7 monthly snapshots in SQL, onConflictDoUpdate dedup. Schema uses netProfit/periodType='month'/no dataQuality col. Stub replaced. tsc+lint exit 0. |
 
 ---
 

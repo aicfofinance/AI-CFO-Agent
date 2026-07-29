@@ -1,5 +1,6 @@
 import { NonRetriableError } from "inngest";
 
+import { recomputeSnapshots } from "@/lib/financial/aggregations/dashboard";
 import { inngest } from "@/lib/inngest";
 import { incrementalSync } from "@/lib/integrations/quickbooks/import";
 
@@ -88,12 +89,12 @@ export const syncSingleOrg = inngest.createFunction(
     }
 
     // ── Step 2: recompute-snapshots ────────────────────────────────────────────
-    // Stub until Step 4.10. Step 4.10 replaces this with:
-    //   await recomputeSnapshots(orgId);
-    // from src/lib/financial/aggregations/dashboard.ts (backend-engineer owns this).
+    // Aggregate the freshly imported transactions into `financial_snapshots`
+    // (7 monthly rows) via backend-engineer's recomputeSnapshots(). All monetary
+    // aggregation happens in SQL; the upsert is idempotent on
+    // (org_id, period_start, period_type) so a re-sync updates rows in place.
     await step.run("recompute-snapshots", async (): Promise<void> => {
-      // Stub: implemented in Step 4.10
-      void orgId; // suppress unused-variable lint warning on the stub line
+      await recomputeSnapshots(orgId);
     });
 
     // ── Step 3: trigger-intelligence-run ──────────────────────────────────────

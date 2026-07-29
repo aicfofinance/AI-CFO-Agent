@@ -2,8 +2,8 @@
 ## AI CFO Agent
 
 **Last updated:** 2026-07-29  
-**Current phase:** Phase 4 — QuickBooks Integration  
-**Active agents:** 1 (integration-engineer on 4.7)  
+**Current phase:** Phase 5 — Financial Data Layer + Cash Flow Projection  
+**Active agents:** 1 (backend-engineer on 5.0)  
 
 ---
 
@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Financial snapshots computation post-sync | 4.10 | backend-engineer | 2026-07-29 |
+| P&L calculation functions | 5.0 | backend-engineer | 2026-07-29 |
 
 ---
 
@@ -31,6 +31,9 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
+| Cash position and AR balance | 5.1 | backend-engineer | 5.0 |
+| Expense category aggregation | 5.2 | backend-engineer | 5.0 |
+| Period comparison and trend data | 5.3 | backend-engineer | 5.0 |
 
 ---
 
@@ -78,6 +81,7 @@
 | Transaction normalization | 4.7 | 2026-07-29 | normalizeTransactionType added to normalize.ts. normalize.test.ts: 13/13 tests pass. No undefined categories. tsc+lint exit 0. |
 | Incremental sync logic | 4.8 | 2026-07-29 | incrementalSync: reads lastSyncedAt, guards auth_expired, creates sync_jobs row, calls importAccounts+importTransactions(since), updates connections. 20/20 tests pass. tsc+lint exit 0. |
 | Inngest sync job with ordered steps | 4.9 | 2026-07-29 | syncFanOut queries active connections, dispatches sync/org.requested per connection. syncSingleOrg: 3 ordered steps (pull-transactions→recompute-snapshots stub→trigger-intelligence-run). NonRetriableError on auth_expired. Registered in serve handler. tsc+lint exit 0. |
+| Financial snapshots computation post-sync | 4.10 | 2026-07-29 | recomputeSnapshots: 7 monthly snapshots, all SQL arithmetic, onConflictDoUpdate dedup. Stub in single-org.ts replaced. Note: schema uses netProfit/periodType='month' (not netIncome/'monthly'). No dataQuality col. tsc+lint exit 0. |
 
 ---
 
