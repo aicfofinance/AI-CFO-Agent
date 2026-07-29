@@ -23,7 +23,8 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| P&L calculation functions | 5.0 | backend-engineer | 2026-07-29 |
+| AR aging schedule builder | 5.4 | ai-engine-engineer | 2026-07-29 |
+| Recurring expense detection | 5.5 | ai-engine-engineer | 2026-07-29 |
 
 ---
 
@@ -31,9 +32,9 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Cash position and AR balance | 5.1 | backend-engineer | 5.0 |
-| Expense category aggregation | 5.2 | backend-engineer | 5.0 |
-| Period comparison and trend data | 5.3 | backend-engineer | 5.0 |
+| Cash flow projection algorithm | 5.6 | ai-engine-engineer | 5.4, 5.5 |
+| AI financial context builder | 5.8 | ai-engine-engineer | 5.0, 5.2, 5.3 |
+| Financial summary API endpoint | 5.9 | backend-engineer | 5.0, 5.1, 5.2, 5.3 |
 
 ---
 
@@ -82,6 +83,10 @@
 | Incremental sync logic | 4.8 | 2026-07-29 | incrementalSync: reads lastSyncedAt, guards auth_expired, creates sync_jobs row, calls importAccounts+importTransactions(since), updates connections. 20/20 tests pass. tsc+lint exit 0. |
 | Inngest sync job with ordered steps | 4.9 | 2026-07-29 | syncFanOut queries active connections, dispatches sync/org.requested per connection. syncSingleOrg: 3 ordered steps (pull-transactions→recompute-snapshots stub→trigger-intelligence-run). NonRetriableError on auth_expired. Registered in serve handler. tsc+lint exit 0. |
 | Financial snapshots computation post-sync | 4.10 | 2026-07-29 | recomputeSnapshots: 7 monthly snapshots, all SQL arithmetic, onConflictDoUpdate dedup. Stub in single-org.ts replaced. Note: schema uses netProfit/periodType='month' (not netIncome/'monthly'). No dataQuality col. tsc+lint exit 0. |
+| P&L calculation functions | 5.0 | 2026-07-29 | calculatePnL: SQL-only arithmetic, sql<string>, returns {revenue,expenses,netProfit} strings. 4/4 tests. tsc+lint exit 0. |
+| Cash position and AR balance | 5.1 | 2026-07-29 | getCashPosition+getArBalance: sql<string> aggregations, org-scoped. tsc+lint exit 0. |
+| Expense category aggregation | 5.2 | 2026-07-29 | getExpensesByCategory: window fn for sharePct, NULL→'other', sorted desc. 3/3 tests. tsc+lint exit 0. |
+| Period comparison and trend data | 5.3 | 2026-07-29 | getPeriodComparison+getMonthlyRevenueTrend. 150/100→'50.00'/up. 3/3 tests. tsc+lint exit 0. |
 
 ---
 

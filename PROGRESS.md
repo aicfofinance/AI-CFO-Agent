@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Step 5.0** — P&L calculation functions (in progress)
+**Steps 5.4 + 5.5** — AR aging schedule builder + recurring expense detection (in progress, parallel)
 
 **Active Decision — Step 2.4 expedited:** Step 2.4 (`getRequestContext`) was implemented before Step 4.2 even though 2.0/2.1 are blocked (Supabase SMTP external action). The code and unit tests are complete; live auth verification awaits 2.0. All Phase 4 API endpoints depend on `getRequestContext()` so this unblocks the entire integration layer.
 
@@ -85,6 +85,10 @@
 | 4.8 | Incremental sync logic | 2026-07-29 | incrementalSync: reads lastSyncedAt, guards auth_expired/disconnected, upserts via importAccounts+importTransactions(since). 20/20 vitest pass. tsc+lint exit 0. |
 | 4.9 | Inngest sync job with ordered steps | 2026-07-29 | syncFanOut (cron 0 */6 * * *) + syncSingleOrg (3 ordered steps: pull→recompute stub→intelligence event). NonRetriableError on auth_expired. Registered in inngest serve handler. tsc+lint exit 0. |
 | 4.10 | Financial snapshots computation post-sync | 2026-07-29 | recomputeSnapshots: 7 monthly snapshots in SQL, onConflictDoUpdate dedup. Schema uses netProfit/periodType='month'/no dataQuality col. Stub replaced. tsc+lint exit 0. |
+| 5.0 | P&L calculation functions | 2026-07-29 | calculatePnL SQL-only, sql<string>, 4/4 tests. tsc+lint exit 0. |
+| 5.1 | Cash position and AR balance | 2026-07-29 | getCashPosition+getArBalance: sql<string>, org-scoped. tsc+lint exit 0. |
+| 5.2 | Expense category aggregation | 2026-07-29 | getExpensesByCategory: window fn sharePct, 3/3 tests. tsc+lint exit 0. |
+| 5.3 | Period comparison and trend data | 2026-07-29 | getPeriodComparison+getMonthlyRevenueTrend, 3/3 tests, DoD verified. tsc+lint exit 0. |
 
 ---
 
