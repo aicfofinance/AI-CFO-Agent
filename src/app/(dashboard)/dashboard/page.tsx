@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 
 import { env } from "@/lib/env";
 import { DataTimestamp } from "@/components/shared/DataTimestamp";
+import { FindingCard } from "@/components/dashboard/FindingCard";
 
 // ---------------------------------------------------------------------------
 // Types — defined inline because this endpoint's response type is not yet in
@@ -101,7 +102,7 @@ export default async function IntelligenceFeedPage(): Promise<React.JSX.Element>
         </div>
       </div>
 
-      {/* Feed area — FindingCard component is built in Step 8.1; placeholder divs used here */}
+      {/* Feed area */}
       {findings.length === 0 ? (
         <div className="py-12 text-center text-sm text-[var(--text-muted)]">
           No active findings. Your finances look healthy.
@@ -109,12 +110,7 @@ export default async function IntelligenceFeedPage(): Promise<React.JSX.Element>
       ) : (
         <div className="flex flex-col gap-4">
           {findings.map((finding) => (
-            <div
-              key={finding.id}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-3"
-            >
-              <p className="text-sm font-medium text-[var(--text-primary)]">{finding.headline}</p>
-            </div>
+            <FindingCard key={finding.id} {...finding} />
           ))}
         </div>
       )}
