@@ -11,6 +11,8 @@ import {
   storeCashFlowProjection,
 } from "@/lib/financial/intelligence/cash-flow";
 import { runAnomalyDetection, runMarginDetection } from "@/lib/financial/intelligence/anomaly";
+import { runArAgingAnalysis } from "@/lib/financial/intelligence/ar-aging-intelligence";
+import { runDuplicateSubscriptionScan } from "@/lib/financial/intelligence/duplicates";
 import { db } from "@/lib/platform/db/client";
 import { intelligenceRuns, syncJobs, transactions } from "@/lib/platform/db/schema";
 import { inngest } from "@/lib/inngest";
@@ -197,8 +199,32 @@ export const intelligenceRun = inngest.createFunction(
       return;
     }
 
-    // Steps 6.5–6.7 add the remaining isolated analysis steps here (AR aging
-    // collections opportunity, duplicate subscription scan, mark-completed), each
-    // as its own `step.run()` call.
+    // ── Step 6.5: AR aging collections-opportunity analysis (isolated step) ────
+    // Overdue receivables (unreconciled income past the net-30 grace window) →
+    // a `collections_opportunity` finding whose `related_data` carries the
+    // per-invoice detail (id, amount, client name, days outstanding) the Phase 9
+    // agentic layer uses to pre-populate an invoice-acceleration draft. Its own
+    // `step.run()` — never combined with anomaly, margin, or duplicate analysis
+    // (CLAUDE.md). Same 429 skip contract as above.
+    const arAgingResult = await step.run("ar-aging-analysis", () =>
+      runArAgingAnalysis(orgId, runId),
+    );
+    if (arAgingResult.status === "skipped") {
+      return;
+    }
+
+    // ── Step 6.6: duplicate subscription scan (isolated step) ──────────────────
+    // The same vendor billed across two different expense accounts with amounts
+    // within 10% in the recent billing window → a `duplicate_subscription`
+    // finding. Separate `step.run()`, never combined with AR aging (CLAUDE.md).
+    // Same 429 skip contract as above.
+    const duplicatesResult = await step.run("duplicate-subscription-scan", () =>
+      runDuplicateSubscriptionScan(orgId, runId),
+    );
+    if (duplicatesResult.status === "skipped") {
+      return;
+    }
+
+    // Step 6.7 adds the `mark-completed` step here as its own `step.run()` call.
   },
 );

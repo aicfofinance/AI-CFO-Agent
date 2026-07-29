@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Anomaly detection step | 6.3 | ai-engine-engineer | 2026-07-29 |
+| AR aging + duplicate subscription scan | 6.5+6.6 | ai-engine-engineer | 2026-07-29 |
 
 ---
 
@@ -31,7 +31,6 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Margin deterioration detection | 6.4 | ai-engine-engineer | 6.3 |
 
 ---
 
@@ -94,6 +93,8 @@
 | Intelligence runner scaffold and guards | 6.0 | 2026-07-29 | intelligenceRun Inngest fn, 2 guards (60d history + sync_jobs check), skipped_reason set, returns clean. Registered in serve handler. tsc+lint exit 0. |
 | AI provider routing utility | 6.1 | 2026-07-29 | getModel(complexity) → gemini-2.0-flash or claude-sonnet/haiku-4.5 by threshold 0.7. detectRateLimitError. AI SDK packages installed. 15/15 tests. tsc+lint exit 0. |
 | Cash flow projection intelligence step | 6.2 | 2026-07-29 | step.run('cash-flow-projection')+('cash-flow-risk-finding'). getModel(0.5), 429→skip. expiresAt=riskDate+1d. 8/8 tests. 69/69 total. tsc+lint exit 0. |
+| Anomaly detection step | 6.3 | 2026-07-29 | runAnomalyDetection: expense spike (7d vs 30d avg) + collections slippage (>45d unreconciled). 17/17 tests. 86/86 total. tsc+lint exit 0. commit a5ca3bb |
+| Margin deterioration detection | 6.4 | 2026-07-29 | runMarginDetection: MTD margin vs prior year. Skip if <12mo history. Same 429 skip contract. 17/17 tests. 86/86 total. tsc+lint exit 0. commit a5ca3bb |
 
 ---
 
