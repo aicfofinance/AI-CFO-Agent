@@ -1137,3 +1137,222 @@ export async function importTransactions(
     recordsSynced: cumulativeCount,
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Step 4.8 — Incremental sync
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Performs an incremental sync for the given QuickBooks connection.
+ *
+ * An incremental sync differs from the initial 13-month pull in one key way:
+ * it passes `connections.last_synced_at` as the `since` date to
+ * `importTransactions()`, so only transactions created or modified since the
+ * last successful sync are fetched from the QuickBooks API. This keeps
+ * `sync_jobs.records_synced` small for routine hourly/daily runs.
+ *
+ * Accounts are always re-imported on every sync (they change infrequently but
+ * must stay current — account names and types can change between syncs and the
+ * transaction normalisation layer depends on accurate account data).
+ *
+ * On first run (when `last_synced_at` is NULL), `since` is passed as
+ * `undefined` to `importTransactions()`, which falls back to fetching all
+ * available QB transaction history (the 13-month initial pull behaviour from
+ * Step 4.6).
+ *
+ * Step ordering:
+ *   1. Read connection row (orgId, lastSyncedAt, syncStatus) from DB
+ *   2. Guard: throw if syncStatus is 'auth_expired' or 'disconnected'
+ *   3. Create sync_jobs row (jobType='incremental', status='running')
+ *   4. importAccounts()       — always refresh the Chart of Accounts
+ *   5. importTransactions()   — incremental pull since lastSyncedAt (or full
+ *                               pull if lastSyncedAt is null — first run)
+ *   6. Update connections     — lastSyncedAt=now, syncStatus='active'
+ *   7. Update sync_jobs       — status='completed', completedAt=now, durationMs
+ *
+ * On any error:
+ *   - Re-reads the connection's current syncStatus to preserve 'auth_expired'
+ *     that getQuickBooksClient() may have already written before rethrowing.
+ *   - Updates connections.sync_error_message with the error text.
+ *   - Sets sync_jobs.status = 'failed', completedAt = now.
+ *   - Rethrows the original error so single-org.ts can classify it.
+ *
+ * Security:
+ *   - `orgId` is read from the database `connections` row — never from the
+ *     caller-supplied `connectionId` argument (CLAUDE.md multi-tenancy rules).
+ *   - Token values are decrypted and managed exclusively inside
+ *     `getQuickBooksClient()`; they are never visible in this function.
+ *
+ * Error classification (per CLAUDE.md):
+ *   - 401 / auth_expired: `getQuickBooksClient()` already sets
+ *     `connections.sync_status = 'auth_expired'` and rethrows before this
+ *     function's catch block runs. The re-read in the catch block preserves
+ *     that status instead of overwriting it with 'failed'.
+ *   - 429: handled inside importAccounts / importTransactions (30 s pause +
+ *     single retry per CLAUDE.md). If the retry also fails, the error
+ *     propagates here and the sync job is marked 'failed'.
+ *   - 5xx / network: propagates here → sync_jobs='failed', rethrown.
+ *
+ * @param connectionId - UUID primary key of the `connections` row.
+ */
+export async function incrementalSync(connectionId: string): Promise<void> {
+  // ── 1. Read connection row ──────────────────────────────────────────────────
+  // orgId MUST come from the database, never from caller-supplied input.
+  // CLAUDE.md: "A missing orgId where one should always exist is a security error."
+  const connectionRows = await db
+    .select({
+      orgId: connections.orgId,
+      lastSyncedAt: connections.lastSyncedAt,
+      syncStatus: connections.syncStatus,
+    })
+    .from(connections)
+    .where(eq(connections.id, connectionId));
+
+  const connection = connectionRows[0];
+  if (!connection) {
+    throw new Error(`INCREMENTAL_SYNC_CONNECTION_NOT_FOUND: connectionId=${connectionId}`);
+  }
+
+  const { orgId, lastSyncedAt, syncStatus } = connection;
+
+  // ── 2. Guard: do not proceed if auth is expired or connection is inactive ────
+  // CLAUDE.md: "401 → sync_status = 'auth_expired', stop, never retry with an
+  // expired token." Guarding on 'disconnected' prevents unnecessary API calls
+  // for a connection the user has intentionally severed — those calls would
+  // produce 401s immediately and just add noise to data_quality_log.
+  if (syncStatus === "auth_expired" || syncStatus === "disconnected") {
+    const reason =
+      syncStatus === "auth_expired"
+        ? "QB token is expired — user must reconnect via OAuth before syncing"
+        : "connection is disconnected";
+    throw new Error(`INCREMENTAL_SYNC_BLOCKED: connectionId=${connectionId} reason=${reason}`);
+  }
+
+  // ── 3. Create the sync job row ──────────────────────────────────────────────
+  // Insert and return the generated UUID so subsequent steps can log against it.
+  const insertedJobs = await db
+    .insert(syncJobs)
+    .values({
+      orgId,
+      connectionId,
+      jobType: "incremental",
+      status: "running",
+      startedAt: new Date(),
+    })
+    .returning({ id: syncJobs.id });
+
+  const newJob = insertedJobs[0];
+  if (!newJob) {
+    // This should be unreachable — a successful INSERT always returns one row
+    // when .returning() is used. Treat it as a fatal DB error.
+    throw new Error(`INCREMENTAL_SYNC_JOB_INSERT_FAILED: connectionId=${connectionId}`);
+  }
+
+  const syncJobId = newJob.id;
+  const startedAtMs = Date.now();
+
+  console.log({
+    event: "qb_incremental_sync_started",
+    connectionId,
+    orgId,
+    syncJobId,
+    since: lastSyncedAt?.toISOString() ?? "full-pull (first run)",
+  });
+
+  try {
+    // ── 4. Import accounts ────────────────────────────────────────────────────
+    // Always re-import the Chart of Accounts on every sync run. QB account
+    // names, types, and active flags can change between syncs, and the
+    // transaction normalisation layer depends on accurate account data. Calling
+    // importAccounts() twice is idempotent — it upserts on the unique index.
+    await importAccounts(connectionId, syncJobId);
+
+    // ── 5. Import transactions since lastSyncedAt ─────────────────────────────
+    // Pass lastSyncedAt as the `since` cutoff. This limits the QB TxnDate query
+    // to records on or after that date, keeping records_synced small for
+    // incremental runs (the Definition of Done for Step 4.8).
+    //
+    // When lastSyncedAt is null (first run), `?? undefined` passes `undefined`
+    // to importTransactions(), which omits the TxnDate filter and performs the
+    // full 13-month initial pull (Step 4.6 behaviour).
+    await importTransactions(connectionId, syncJobId, lastSyncedAt ?? undefined);
+
+    // ── 6. Update the connection row ──────────────────────────────────────────
+    // Record the successful sync time so the next incremental run uses this
+    // timestamp as its `since` cutoff. Clear any previous error message.
+    // `updated_at` is maintained by a Postgres trigger (SETUP.md) — not set here.
+    await db
+      .update(connections)
+      .set({
+        lastSyncedAt: new Date(),
+        syncStatus: "active",
+        syncErrorMessage: null,
+      })
+      .where(eq(connections.id, connectionId));
+
+    // ── 7. Mark the sync job completed ────────────────────────────────────────
+    const durationMs = Date.now() - startedAtMs;
+    await db
+      .update(syncJobs)
+      .set({
+        status: "completed",
+        completedAt: new Date(),
+        durationMs,
+      })
+      .where(eq(syncJobs.id, syncJobId));
+
+    console.log({
+      event: "qb_incremental_sync_complete",
+      connectionId,
+      orgId,
+      syncJobId,
+      durationMs,
+    });
+  } catch (err) {
+    // ── Error path ────────────────────────────────────────────────────────────
+    // getQuickBooksClient() (called inside importAccounts / importTransactions)
+    // already writes `sync_status = 'auth_expired'` to the connections row and
+    // rethrows when a token refresh fails (CLAUDE.md: "401 → auth_expired, stop,
+    // never retry"). Re-reading the current syncStatus here preserves that value
+    // instead of overwriting it with 'failed'.
+    const errMessage = err instanceof Error ? err.message : String(err);
+
+    console.error({
+      event: "qb_incremental_sync_failed",
+      connectionId,
+      orgId,
+      syncJobId,
+      errorMessage: errMessage,
+    });
+
+    // Re-read current syncStatus to detect whether getQuickBooksClient() already
+    // wrote 'auth_expired'. One extra SELECT is cheaper than losing that signal.
+    const statusRows = await db
+      .select({ syncStatus: connections.syncStatus })
+      .from(connections)
+      .where(eq(connections.id, connectionId));
+
+    const currentStatus = statusRows[0]?.syncStatus;
+    const failStatus: string = currentStatus === "auth_expired" ? "auth_expired" : "failed";
+
+    await db
+      .update(connections)
+      .set({
+        syncStatus: failStatus,
+        syncErrorMessage: errMessage,
+      })
+      .where(eq(connections.id, connectionId));
+
+    const durationMs = Date.now() - startedAtMs;
+    await db
+      .update(syncJobs)
+      .set({
+        status: "failed",
+        completedAt: new Date(),
+        durationMs,
+      })
+      .where(eq(syncJobs.id, syncJobId));
+
+    throw err;
+  }
+}
