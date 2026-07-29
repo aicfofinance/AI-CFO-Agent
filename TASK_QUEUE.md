@@ -23,7 +23,9 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Intelligence Feed page layout + data fetching | 8.0 | product-engineer | 2026-07-29 |
+| Intelligence Feed healthy + insufficient-data states | 8.2 | product-engineer | 2026-07-29 |
+| Finding dismiss action in UI | 8.3 | product-engineer | 2026-07-29 |
+| Cash flow detail panel + insufficient-data empty state | 8.5 | product-engineer | 2026-07-29 |
 
 ---
 
@@ -31,8 +33,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Finding card component | 8.1 | product-engineer | 8.0, 7.3 |
-| Cash Flow Timeline page and visualization | 8.4 | product-engineer | 5.7, 7.2 |
+| Intelligence nav badge live count | 8.6 | product-engineer | 8.0, 7.6 |
 
 ---
 
@@ -106,6 +107,9 @@
 | Intelligence engine integration test | 6.12 | 2026-07-29 | full-run.test.ts: expense spike→anomaly, overdue invoice→collections_opportunity (invoiceId in relatedData), duplicate vendor→duplicate_subscription. 6 tests, 9ms. 142/142. tsc+lint exit 0. commit 3afbe87 |
 | Tailwind v4 + CSS design tokens | 7.0 | 2026-07-29 | src/styles/globals.css: 40+ CSS vars, @theme Tailwind tokens, .font-numeric, focus rings. Inter+IBM Plex Mono fonts. layout.tsx updated. system.ts placeholder added. 142/142. tsc+lint exit 0. commit 040b7dc |
 | shadcn/ui + base components | 7.1–7.6 | 2026-07-29 | shadcn/ui init, 9 primitives, sonner, (dashboard) layout+AppNav (Intelligence first), SeverityBadge, CurrencyAmount, MetricChange, 3 skeletons, FinancialTable (rounded-none), AlertBadge, DataTimestamp. tsc+lint exit 0. 142/142 tests. commit cdefe5a |
+| Intelligence Feed page layout + data fetching | 8.0 | 2026-07-29 | Server Component. Fetches /api/intelligence/feed, forwards session cookie, redirect on 401, data sovereignty badge always visible. loading.tsx with 3x FindingCardSkeleton. tsc+lint exit 0. 142/142. commit 5378f7a |
+| Finding card component | 8.1 | 2026-07-29 | Client component with expand/collapse, SeverityBadge, left-border accent, detail+recommendedAction when expanded, disabled Take action btn, Tell me more → /ask?finding_id=[id]. dashboard/page.tsx updated. tsc+lint exit 0. 142/142. commit c8f78a8 |
+| Cash Flow Timeline page and visualization | 8.4 | 2026-07-29 | recharts@2.15. CashFlowChart: ComposedChart green/red bars, blue balance line, zero ReferenceLine, red ReferenceDot on risk dates, rounded-none. DaysTabBar 30/60/90d. 422→progress bar. Disclaimer always visible. tsc+lint exit 0. 142/142. commit 55dfc72 |
 
 ---
 

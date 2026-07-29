@@ -15,6 +15,7 @@
 import React, { Suspense } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 import { env } from "@/lib/env";
 import { CashFlowChart } from "@/components/dashboard/CashFlowChart";
@@ -149,6 +150,32 @@ export default async function CashflowPage({ searchParams }: Props): Promise<Rea
             </div>
           </div>
           <p className="text-xs text-[var(--text-muted)]">{daysAvailable} / 60 days</p>
+          {/* Ask-a-question CTAs — available while baseline is building */}
+          <div className="mt-6 space-y-2 text-left">
+            <p className="text-sm font-medium text-[var(--text-secondary)]">
+              While you wait, you can still ask:
+            </p>
+            <div className="flex flex-col gap-2">
+              <Link
+                href="/ask?q=what+are+my+biggest+expenses+this+month"
+                className="text-sm text-[var(--text-link)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary-500)] focus-visible:rounded"
+              >
+                &#8594; What are my biggest expenses this month?
+              </Link>
+              <Link
+                href="/ask?q=how+does+my+cash+position+compare+to+last+month"
+                className="text-sm text-[var(--text-link)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary-500)] focus-visible:rounded"
+              >
+                &#8594; How does my cash position compare to last month?
+              </Link>
+              <Link
+                href="/ask?q=show+me+transactions+from+the+last+30+days"
+                className="text-sm text-[var(--text-link)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary-500)] focus-visible:rounded"
+              >
+                &#8594; Show me transactions from the last 30 days
+              </Link>
+            </div>
+          </div>
         </div>
         <p className="mt-6 border-t border-[var(--border-subtle)] pt-4 text-xs text-[var(--text-muted)]">
           This is AI-assisted cash flow analysis based on your accounting data. It is not financial

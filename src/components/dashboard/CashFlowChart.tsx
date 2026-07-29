@@ -17,7 +17,7 @@
  * pixel positions (display-only). No monetary arithmetic is performed here.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import {
   ComposedChart,
   Bar,
@@ -33,6 +33,7 @@ import {
 } from "recharts";
 
 import { CurrencyAmount } from "@/components/shared/CurrencyAmount";
+import { CashFlowDetailPanel } from "@/components/dashboard/CashFlowDetailPanel";
 import { formatCurrency } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
@@ -75,6 +76,9 @@ export function CashFlowChart({
   riskDate,
   confidenceLevel,
 }: CashFlowChartProps): React.JSX.Element {
+  // Track which risk date the user has clicked to show the inline detail panel
+  const [selectedRiskDate, setSelectedRiskDate] = useState<string | null>(null);
+
   // Guard: empty projection (defensive — API always returns N days of data)
   if (projectedData.length === 0) {
     return (
@@ -203,13 +207,30 @@ export function CashFlowChart({
             {/* Zero baseline */}
             <ReferenceLine y={0} stroke="#94A3B8" strokeDasharray="4 4" />
 
-            {/* Risk date marker — only rendered when a risk date exists */}
+            {/* Risk date marker — clickable dot that opens the inline detail panel */}
             {riskDateFormatted !== null && (
-              <ReferenceDot x={riskDateFormatted} y={0} r={6} fill="#C42030" stroke="none" />
+              <ReferenceDot
+                x={riskDateFormatted}
+                y={0}
+                r={6}
+                fill="#C42030"
+                stroke="none"
+                onClick={() => setSelectedRiskDate(riskDate)}
+                className="cursor-pointer"
+              />
             )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Inline detail panel — expands below chart when a risk date dot is clicked */}
+      {selectedRiskDate !== null && (
+        <CashFlowDetailPanel
+          selectedDate={selectedRiskDate}
+          dailyBalances={projectedData}
+          onClose={() => setSelectedRiskDate(null)}
+        />
+      )}
     </div>
   );
 }
