@@ -1,8 +1,12 @@
 import { NonRetriableError } from "inngest";
+import { eq } from "drizzle-orm";
 
 import { recomputeSnapshots } from "@/lib/financial/aggregations/dashboard";
 import { inngest } from "@/lib/inngest";
+import { db } from "@/lib/platform/db/client";
+import { connections } from "@/lib/platform/db/schema";
 import { incrementalSync } from "@/lib/integrations/quickbooks/import";
+import { incrementalXeroSync } from "@/lib/integrations/xero/import";
 
 /**
  * Event data shape for `sync/org.requested`.
@@ -47,25 +51,48 @@ export const syncSingleOrg = inngest.createFunction(
     const { connectionId, orgId } = event.data as SyncOrgEventData;
 
     // ── Step 1: pull-transactions ──────────────────────────────────────────────
-    // incrementalSync() fetches QB Chart of Accounts + transactions since the
-    // last successful sync, upserts them, and updates connection + sync_jobs rows.
-    // On first run (last_synced_at = null), it performs a full 13-month pull.
+    // Resolve the provider from the connections row and call the appropriate
+    // incremental sync function. QB uses incrementalSync(); Xero uses
+    // incrementalXeroSync(). Both functions handle token refresh, Chart of
+    // Accounts import, transaction upsert, and sync_jobs row management.
     try {
       await step.run("pull-transactions", async (): Promise<void> => {
-        await incrementalSync(connectionId);
+        // Read the provider from the DB — never from event.data (multi-tenancy).
+        const connectionRows = await db
+          .select({ provider: connections.provider })
+          .from(connections)
+          .where(eq(connections.id, connectionId));
+
+        const connection = connectionRows[0];
+        if (!connection) {
+          throw new Error(`SINGLE_ORG_CONNECTION_NOT_FOUND: connectionId=${connectionId}`);
+        }
+
+        if (connection.provider === "quickbooks") {
+          await incrementalSync(connectionId);
+        } else if (connection.provider === "xero") {
+          await incrementalXeroSync(connectionId);
+        } else {
+          throw new Error(
+            `SINGLE_ORG_UNKNOWN_PROVIDER: connectionId=${connectionId} ` +
+              `provider=${connection.provider}`,
+          );
+        }
       });
     } catch (err) {
       const errMessage = err instanceof Error ? err.message : String(err);
 
       // CLAUDE.md: "401 → sync_status = 'auth_expired', stop, never retry."
-      // incrementalSync() already writes sync_status='auth_expired' to the DB.
-      // Both paths that indicate this are checked:
-      //   • INCREMENTAL_SYNC_BLOCKED: thrown by the guard at the top of
-      //     incrementalSync() when syncStatus is already 'auth_expired'.
-      //   • auth_expired in the message: set by getQuickBooksClient() when a
-      //     token refresh fails mid-sync.
+      // Both incrementalSync() and incrementalXeroSync() write
+      // sync_status='auth_expired' to the DB before throwing in this case.
+      // Patterns that indicate auth expiry:
+      //   • 'auth_expired'           — written by the client factories
+      //   • 'INCREMENTAL_SYNC_BLOCKED' — guard at top of each sync function
+      //   • 'XERO_INCREMENTAL_SYNC_BLOCKED' — Xero-specific guard prefix
       const isAuthExpired =
-        errMessage.includes("auth_expired") || errMessage.includes("INCREMENTAL_SYNC_BLOCKED");
+        errMessage.includes("auth_expired") ||
+        errMessage.includes("INCREMENTAL_SYNC_BLOCKED") ||
+        errMessage.includes("XERO_INCREMENTAL_SYNC_BLOCKED");
 
       console.error({
         event: "sync_pull_transactions_failed",
@@ -84,7 +111,7 @@ export const syncSingleOrg = inngest.createFunction(
       }
 
       // For all other errors (429 exhausted, 5xx, network), rethrow so Inngest
-      // retries the job. incrementalSync() handles the sync_job row failure state.
+      // retries the job. The sync function handles the sync_job row failure state.
       throw err;
     }
 
