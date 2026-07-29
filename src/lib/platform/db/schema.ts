@@ -501,7 +501,7 @@ export const queryLog = pgTable(
       .on(t.orgId, t.createdAt.desc())
       .where(sql`${t.success} = true`),
     // Per-day rollups via a functional index on DATE(created_at).
-    index("idx_query_log_org_day").on(t.orgId, sql`(DATE(${t.createdAt}))`),
+    index("idx_query_log_org_day").on(t.orgId, sql`((${t.createdAt} AT TIME ZONE 'UTC')::date)`),
   ],
 );
 

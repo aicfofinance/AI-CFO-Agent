@@ -59,4 +59,4 @@ CREATE INDEX IF NOT EXISTS "idx_conversations_user" ON "conversations" USING btr
 CREATE INDEX IF NOT EXISTS "idx_messages_conversation" ON "messages" USING btree ("conversation_id","created_at");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_messages_org_content" ON "messages" USING btree ("org_id","created_at" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_query_log_org_period" ON "query_log" USING btree ("org_id","created_at" DESC NULLS LAST) WHERE "query_log"."success" = true;--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "idx_query_log_org_day" ON "query_log" USING btree ("org_id",(DATE("created_at")));
+CREATE INDEX IF NOT EXISTS "idx_query_log_org_day" ON "query_log" USING btree ("org_id",((created_at AT TIME ZONE 'UTC')::date));

@@ -1250,7 +1250,7 @@
               "nulls": "last"
             },
             {
-              "expression": "(DATE(\"created_at\"))",
+              "expression": "((\"created_at\" AT TIME ZONE 'UTC')::date)",
               "asc": true,
               "isExpression": true,
               "nulls": "last"
