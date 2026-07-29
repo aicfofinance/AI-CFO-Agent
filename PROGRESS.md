@@ -17,13 +17,13 @@
 
 ## Current Phase
 
-**Phase 14: Polish** — in progress (14.0 complete; 14.1 + 14.2 in progress)
+**Phase 14: Polish** — complete. **Phase 15: Pre-Launch** — in progress (15.1, 15.2, 15.3 done; 15.0 blocked by live DB; 15.4/15.5 blocked by external action)
 
 ---
 
 ## Current Step
 
-**Steps 14.1 + 14.2** — Notification preferences, auth_expired amber banner, 14-day medium suppression, terms/privacy pages (four parallel agents)
+**Step 15.3 complete** — All pre-launch benchmarks and compliance tests done. Stop condition hit: Available empty, all remaining Blocked steps require external action (git push, Vercel deploy, Stripe credentials).
 
 **Active Decision — Step 2.4 expedited:** Step 2.4 (`getRequestContext`) was implemented before Step 4.2 even though 2.0/2.1 are blocked (Supabase SMTP external action). The code and unit tests are complete; live auth verification awaits 2.0. All Phase 4 API endpoints depend on `getRequestContext()` so this unblocks the entire integration layer.
 
@@ -46,8 +46,8 @@
 | 11 | Reactive Q&A Interface | 11.0–11.4 | ✅ Complete |
 | 12 | Xero Integration | 12.0–12.1 | ✅ Complete |
 | 13 | Reports + Billing | 13.0–13.2 | 🔲 Blocked: Stripe credentials not obtained |
-| 14 | Polish | 14.0–14.2 | 🔄 In progress (14.0 ✅; 14.1+14.2 in progress) |
-| 15 | Pre-Launch | 15.0–15.5 | 🔄 In progress (15.1 ✅; 15.2+15.3 available; 15.4/15.5 blocked) |
+| 14 | Polish | 14.0–14.2 | ✅ Complete |
+| 15 | Pre-Launch | 15.0–15.5 | 🔄 In progress (15.1+15.2+15.3 ✅; 15.0 blocked live DB; 15.4/15.5 blocked Vercel deploy) |
 
 ---
 
@@ -99,6 +99,10 @@
 | 6.0 | Intelligence runner scaffold and guards | 2026-07-29 | intelligenceRun Inngest fn, guard1 (60d), guard2 (sync_jobs), clean skip, registered in serve handler. 61/61 tests. tsc+lint exit 0. |
 | 6.1 | AI provider routing utility | 2026-07-29 | getModel (google/anthropic), detectRateLimitError, AI SDK installed, sole router.ts owner. 15/15 tests. 61/61 total. tsc+lint exit 0. |
 | 6.2 | Cash flow projection intelligence step | 2026-07-29 | step.run('cash-flow-projection')+('cash-flow-risk-finding'). getModel(0.5), 429→skip. expiresAt=riskDate+1d. 8/8 tests. 69/69 total. tsc+lint exit 0. |
+| 15.1 | Security tests (token encryption + API auth) | 2026-07-30 | token-encryption.test.ts (10 tests). api-auth.test.ts (16 tests, all 14 session-gated endpoints). 322/322. tsc+lint exit 0. commit 9842463 |
+| 15.2 | Intelligence accuracy benchmark script | 2026-07-30 | scripts/benchmark-intelligence-accuracy.ts: 5 orgs seeded in-memory, direct detection fn calls. No AI model calls needed. 322/322. tsc+lint exit 0. commit 876c19b |
+| 15.3 | Step timing + financial query benchmark | 2026-07-30 | step-timing.test.ts: 5 intel steps each <8000ms (performance.now). benchmark-financial-queries.ts: 10k tx, 4 queries × 3 runs median. 322/322. tsc+lint exit 0. commit 876c19b |
+| — | DB migration immutability fix | 2026-07-30 | idx_query_log_org_day: DATE(timestamptz)→(created_at AT TIME ZONE 'UTC')::date in schema.ts + 0004 SQL + 4 snapshots. db:generate: no diff. commit 876c19b |
 
 ---
 
@@ -119,6 +123,13 @@
 ---
 
 ## Known Issues
+
+### Issue 3 — idx_query_log_org_day used STABLE DATE() expression — FIXED
+**Discovered at step:** 15.2 (by benchmark agent reading schema.ts)
+**Date:** 2026-07-30
+**Description:** `DATE("created_at")` on a `timestamptz` column is STABLE, not IMMUTABLE. PostgreSQL rejects non-IMMUTABLE expressions in index definitions with error 42P17. This would have caused all migrations from scratch (0004 onward) to fail at the index creation line.
+**Impact:** Any fresh DB bootstrap (new dev environment, CI, production) would have failed at migration 0004.
+**Status:** Fixed at commit 876c19b — changed to `(created_at AT TIME ZONE 'UTC')::date` which is IMMUTABLE. schema.ts, 0004 SQL, and 4 drizzle-kit snapshot files all updated. `db:generate` confirms no diff.
 
 ### Issue 1 — Corporate firewall blocks Supabase DB ports
 **Discovered at step:** 1.5

@@ -23,10 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Notification prefs API (alert-configs + auth_expired intelligence guard) | 14.1-api | backend-engineer | 2026-07-30 |
-| Notification prefs UI + amber auth-expired banner | 14.1-ui | product-engineer | 2026-07-30 |
-| 14-day suppression logic + terms/privacy pages (backend) | 14.2-api | backend-engineer | 2026-07-30 |
-| Terms + privacy pages UI | 14.2-ui | product-engineer | 2026-07-30 |
+| *(none)* | | | |
 
 ---
 
@@ -34,8 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Intelligence accuracy benchmark script | 15.2 | backend-engineer | 6.12 ✓ |
-| Vercel timeout compliance + performance benchmark | 15.3 | ai-engine-engineer + backend-engineer | 6.9 ✓ |
+| *(none)* | | | |
 
 ---
 
@@ -158,12 +154,34 @@
 | Alerts archive endpoint | 14.0-api | 2026-07-30 | GET /api/intelligence/findings: cursor-paginated archive, status/severity/type/date filters, status=active reproduces feed expiry filter, status=all omits it. FindingArchiveItem type in api.ts. 291/291 tests. tsc+lint exit 0. commit 9842463 |
 | Alerts archive UI page | 14.0-ui | 2026-07-30 | /alerts: client-side filter bar (status/severity/type), cursor load-more, dimmed dismissed+actioned cards, configure-alerts link, empty state. 307/307 tests. tsc+lint exit 0. commit 9842463 |
 | Token encryption + API auth security tests | 15.1 | 2026-07-30 | token-encryption.test.ts (10 tests: round-trip, IV uniqueness, tamper detection, no plaintext). api-auth.test.ts (16 tests: all 14 session-gated endpoints 401, including all 5 V2 endpoints). 307/307 tests. tsc+lint exit 0. commit 9842463 |
+| Notification prefs API | 14.1-api | 2026-07-30 | GET/PATCH /api/alert-configs. AlertConfigItem type in api.ts. 10 tests. 317/317 tests. tsc+lint exit 0. commit 6af127e |
+| Intelligence runner alert-config gating + feed medium suppression | 14.1-runner + 14.2-feed | 2026-07-30 | load-alert-configs step.run gates 4 analysis steps. Feed excludes medium findings >14d old, meta.mediumFindingsSuppressed added. 317/317. tsc+lint exit 0. commit 6af127e |
+| Notification prefs UI + amber banner | 14.1-ui | 2026-07-30 | /settings/notifications: 4 alert rows with toggles, email opt-out, info block. DashboardLayout: amber auth-expired banner fetched server-side. 317/317. tsc+lint exit 0. commit 6af127e |
+| Terms + privacy pages | 14.2-ui | 2026-07-30 | /terms (12 sections, mandatory Not Financial Advice + Data Sovereignty) + /privacy (9 sections). Static Server Components, no auth required. 317/317. tsc+lint exit 0. commit 6af127e |
+| Intelligence accuracy benchmark script | 15.2 | 2026-07-30 | scripts/benchmark-intelligence-accuracy.ts: 5 orgs, direct detection fn calls, no AI mocking. 322/322. tsc+lint exit 0. commit 876c19b |
+| Step timing compliance test | 15.3-timing | 2026-07-30 | src/__tests__/intelligence/step-timing.test.ts: 5 tests <8000ms each via performance.now(). 322/322. tsc+lint exit 0. commit 876c19b |
+| Financial queries performance benchmark | 15.3-bench | 2026-07-30 | scripts/benchmark-financial-queries.ts: 10k tx seed, 4 queries × 3 runs median, PASS/FAIL table. 322/322. tsc+lint exit 0. commit 876c19b |
+| DB migration immutability bug fix | — | 2026-07-30 | idx_query_log_org_day: DATE(timestamptz) STABLE → AT TIME ZONE UTC IMMUTABLE. Fixed schema.ts + 0004 SQL + 4 snapshots. db:generate: no diff. commit 876c19b |
 
 ---
 
 ## Orchestrator Notes
 
 *This section is the persistent context layer between sessions. Update it whenever a session ends mid-task, a decision is made that affects agent assignments, or a dependency chain changes.*
+
+---
+
+### Session 12 — 2026-07-30
+
+**Completed this session:** 15.2, 15.3-timing, 15.3-bench (benchmark scripts + step-timing test). DB migration immutability bug fixed (idx_query_log_org_day). All committed in 876c19b. 322/322 tests. tsc+lint clean.
+
+**Stop condition hit:** Available is empty. Everything in Blocked requires external action (Vercel deploy for 15.4/15.5, Stripe credentials for 13.x, Supabase SMTP + GitHub push for 1.5/1.6). Nothing more to do autonomously.
+
+**Known issue resolved:** DATE(timestamptz) on a timestamptz column is STABLE not IMMUTABLE in PostgreSQL — the index in schema.ts/migration 0004 would have caused error 42P17 on any fresh DB bootstrap. Fixed by switching to (created_at AT TIME ZONE 'UTC')::date. All 4 drizzle-kit snapshot JSON files updated. db:generate confirms no diff.
+
+**State on exit:** 322 tests passing. tsc+lint clean. Phase 14 complete. Phase 15 partial (15.1+15.2+15.3 done; 15.0 blocked by live DB; 15.4/15.5 blocked by Vercel deployment external action). Phases 1–12 complete modulo live DB / external auth verification.
+
+**To resume:** external actions needed — (a) `git push origin main` to push 69 unpushed commits; (b) Vercel project creation + production Supabase for steps 15.4/15.5; (c) Stripe credentials for Phase 13.
 
 ---
 
