@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Onboarding sync waiting page | 10.3 | product-engineer | 2026-07-30 |
+| First intelligence brief screen | 10.4 | product-engineer | 2026-07-30 |
 
 ---
 
@@ -41,8 +41,8 @@
 |------|--------|------------|
 | GitHub Actions CI pipeline | 1.6 | All code deps met. Needs push to GitHub — git push blocked by Claude Code auto-classifier. User must run `git push origin main` or authorize push in settings. |
 | Live auth DoD verification | 2.0–2.6 | External action: Supabase Dashboard → Auth → SMTP → smtp.resend.com:465, username=resend, password=RESEND_API_KEY. Set Site URL=http://localhost:3000, add /api/auth/callback to redirect allowlist. Code is written. |
-| First intelligence brief screen | 10.4 | 10.3 |
-| First intelligence brief screen | 10.4 | 10.3, 8.1 (done) |
+| *(none — 13.x blocked by Stripe credentials)* | | | |
+| Billing / Stripe integration | 13.x | Stripe credentials not obtained |
 | Billing / Stripe integration | 13.x | Stripe credentials not obtained |
 
 > **External actions required before un-blocking:** Steps 1.5 and 1.6 require real-world setup outside the codebase (creating a Supabase project, pushing to GitHub). See the **Integration Credentials Status** section of PROGRESS.md for the full list of credentials to obtain. Until these accounts exist, these steps cannot complete their Definition of Done even if the code is written.
@@ -148,6 +148,7 @@
 | Refugee welcome page + CSV UI | 10.1-ui | 2026-07-30 | onboarding/refugee/page.tsx: headline + three path cards (CSV/connect/start-fresh). onboarding/csv/page.tsx: idle→uploading→success state machine, POST /api/connections/csv, persistent snapshot banner. 271/271 tests. tsc+lint exit 0. commit f819bd3 |
 | Data & Privacy export endpoint | 10.5-api | 2026-07-30 | GET /api/data/export: jszip@3.10.1, Upstash+in-process rate limit (1/hr/org), zip contains conversations/findings/action_drafts/reports/README.txt, org-slug filename, Retry-After header. 271/271 tests (4 new). tsc+lint exit 0. commit f819bd3 |
 | Start fresh + connect screen update | 10.2 | 2026-07-30 | onboarding/connect/page.tsx: QB+Xero provider cards, ShieldCheck sovereignty banner above options, CSV fallback. onboarding/start-fresh/page.tsx: 3-step ol, CTA→/connect. 271/271. tsc+lint exit 0. commit 335a71f |
+| Onboarding sync waiting page | 10.3 | 2026-07-30 | onboarding/sync/page.tsx: two-phase polling (phase1: syncStatus=success, phase2: lastIntelligenceRunAt!=null), 90s timeout, Retry/Continue, dynamic text 4 messages. 271/271. tsc+lint exit 0. commit 9dec1f6 |
 | Data & Privacy settings UI | 10.5-ui | 2026-07-30 | settings/account/page.tsx: Account section (auth/me), Data & Privacy section, Download your data button (blob URL), 429 surfaced verbatim. 271/271. tsc+lint exit 0. commit 335a71f |
 
 ---
