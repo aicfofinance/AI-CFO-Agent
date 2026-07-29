@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Steps 5.4 + 5.5** — AR aging schedule builder + recurring expense detection (in progress, parallel)
+**Steps 5.6 + 5.8 + 5.9** — Cash flow projection + AI context builder + financial summary API (in progress, parallel)
 
 **Active Decision — Step 2.4 expedited:** Step 2.4 (`getRequestContext`) was implemented before Step 4.2 even though 2.0/2.1 are blocked (Supabase SMTP external action). The code and unit tests are complete; live auth verification awaits 2.0. All Phase 4 API endpoints depend on `getRequestContext()` so this unblocks the entire integration layer.
 
@@ -89,6 +89,8 @@
 | 5.1 | Cash position and AR balance | 2026-07-29 | getCashPosition+getArBalance: sql<string>, org-scoped. tsc+lint exit 0. |
 | 5.2 | Expense category aggregation | 2026-07-29 | getExpensesByCategory: window fn sharePct, 3/3 tests. tsc+lint exit 0. |
 | 5.3 | Period comparison and trend data | 2026-07-29 | getPeriodComparison+getMonthlyRevenueTrend, 3/3 tests, DoD verified. tsc+lint exit 0. |
+| 5.4 | AR aging schedule builder | 2026-07-29 | buildArAgingSchedule: 5 buckets, projectedPaymentDate+confidenceLevel non-null. 4/4 tests. tsc+lint exit 0. |
+| 5.5 | Recurring expense detection | 2026-07-29 | detectRecurringExpenses: 25-35d cycle, 10% tolerance, median string. AWS scenario verified. 3/3 tests. tsc+lint exit 0. |
 
 ---
 

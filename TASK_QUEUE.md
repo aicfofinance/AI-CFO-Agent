@@ -23,8 +23,9 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| AR aging schedule builder | 5.4 | ai-engine-engineer | 2026-07-29 |
-| Recurring expense detection | 5.5 | ai-engine-engineer | 2026-07-29 |
+| Cash flow projection algorithm | 5.6 | ai-engine-engineer | 2026-07-29 |
+| AI financial context builder | 5.8 | ai-engine-engineer | 2026-07-29 |
+| Financial summary API endpoint | 5.9 | backend-engineer | 2026-07-29 |
 
 ---
 
@@ -32,9 +33,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Cash flow projection algorithm | 5.6 | ai-engine-engineer | 5.4, 5.5 |
-| AI financial context builder | 5.8 | ai-engine-engineer | 5.0, 5.2, 5.3 |
-| Financial summary API endpoint | 5.9 | backend-engineer | 5.0, 5.1, 5.2, 5.3 |
+| Cash flow projection storage + API | 5.7 | ai-engine-engineer | 5.6 |
 
 ---
 
@@ -87,6 +86,8 @@
 | Cash position and AR balance | 5.1 | 2026-07-29 | getCashPosition+getArBalance: sql<string> aggregations, org-scoped. tsc+lint exit 0. |
 | Expense category aggregation | 5.2 | 2026-07-29 | getExpensesByCategory: window fn for sharePct, NULL→'other', sorted desc. 3/3 tests. tsc+lint exit 0. |
 | Period comparison and trend data | 5.3 | 2026-07-29 | getPeriodComparison+getMonthlyRevenueTrend. 150/100→'50.00'/up. 3/3 tests. tsc+lint exit 0. |
+| AR aging schedule builder | 5.4 | 2026-07-29 | buildArAgingSchedule: 5 buckets, projectedPaymentDate+confidenceLevel always non-null. 4/4 tests. tsc+lint exit 0. |
+| Recurring expense detection | 5.5 | 2026-07-29 | detectRecurringExpenses: 25-35d cycle + 10% tolerance. Median amount as original string. 3/3 tests (AWS scenario verified). tsc+lint exit 0. |
 
 ---
 
