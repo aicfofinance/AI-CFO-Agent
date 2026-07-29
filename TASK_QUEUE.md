@@ -2,8 +2,8 @@
 ## AI CFO Agent
 
 **Last updated:** 2026-07-30  
-**Current phase:** Phase 9 — Agentic Execution Layer  
-**Active agents:** 1 (product-engineer on 9.3)  
+**Current phase:** Phase 11 — Reactive Q&A Interface (Phase 10 in parallel)  
+**Active agents:** 2  
 
 ---
 
@@ -23,7 +23,8 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Wire all agentic CTAs | 9.7 | product-engineer | 2026-07-30 |
+| Migration check screen + /ask empty state | 10.0, 11.2 | product-engineer | 2026-07-30 |
+| POST /api/conversations + quota.ts | 11.3-prereq | backend-engineer | 2026-07-30 |
 
 ---
 
@@ -31,6 +32,12 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
+| Messages API + streaming rendering (AI parts) | 11.3 | ai-engine-engineer | 11.3-prereq (backend), 11.1 ✓ |
+| Refugee welcome page + CSV upload | 10.1 | product-engineer + integration-engineer | 10.0 |
+| Start fresh + connect screen update | 10.2 | product-engineer | 10.1 |
+| Data & Privacy settings + export endpoint | 10.5 | backend-engineer + product-engineer | 2.6 ✓ |
+| Conversation history and 12-month cleanup | 11.4 | backend-engineer + product-engineer | 11.3 |
+| Xero integration | 12.0 | integration-engineer | 4.0 ✓ |
 
 ---
 
@@ -39,7 +46,10 @@
 | Task | Step # | Blocked By |
 |------|--------|------------|
 | GitHub Actions CI pipeline | 1.6 | All code deps met. Needs push to GitHub — git push blocked by Claude Code auto-classifier. User must run `git push origin main` or authorize push in settings. |
-| Supabase Auth magic link + Resend SMTP setup | 2.0 | External action: Supabase Dashboard → Auth → SMTP → set smtp.resend.com:465 with RESEND_API_KEY. Also: set Site URL to http://localhost:3000, add /api/auth/callback to redirect allowlist. |
+| Live auth DoD verification | 2.0–2.6 | External action: Supabase Dashboard → Auth → SMTP → smtp.resend.com:465, username=resend, password=RESEND_API_KEY. Set Site URL=http://localhost:3000, add /api/auth/callback to redirect allowlist. Code is written. |
+| Onboarding sync waiting page | 10.3 | 10.2 (depends on 10.1→10.0) |
+| First intelligence brief screen | 10.4 | 10.3, 8.1 (done) |
+| Billing / Stripe integration | 13.x | Stripe credentials not obtained |
 
 > **External actions required before un-blocking:** Steps 1.5 and 1.6 require real-world setup outside the codebase (creating a Supabase project, pushing to GitHub). See the **Integration Credentials Status** section of PROGRESS.md for the full list of credentials to obtain. Until these accounts exist, these steps cannot complete their Definition of Done even if the code is written.
 
@@ -116,12 +126,33 @@
 | PATCH /api/intelligence/actions/:id | 9.2 | 2026-07-30 | draft→approved→copied legal transitions, dual write on copied (draft+finding actioned), 400 on illegal transitions. tsc+lint exit 0. |
 | AgenticModal states 1–4 (confirm+loading+review+copy) | 9.3–9.5 | 2026-07-30 | Five-state modal. AI disclaimer visible in State 3. CTA "Copy to clipboard". Null recipientEmail: literal TO: placeholder in copy text. tsc+lint exit 0. 160/160. commit 679dc13 |
 | AgenticModal State 5 + action tracking | 9.6 | 2026-07-30 | PATCH approved on "Looks good->", PATCH copied on copy. router.refresh() on close from done removes actioned finding. Visual-only "Mark as sent" toggle. tsc+lint exit 0. 160/160. commit cf87dcb |
+| Wire all agentic CTAs | 9.7 | 2026-07-30 | "Take action" (done in 9.3). Accelerate: cashflow page fetches feed in parallel, passes collections_opportunity finding to panel. Button shows invoice count, opens AgenticModal. tsc+lint exit 0. 160/160. commit bbf35bb |
+| Login + register pages | 2.0 | 2026-07-30 | signInWithOtp → /check-email, source=bench data-sovereignty callout, emailRedirectTo propagates source. tsc+lint exit 0. 204/204. commit c80d663 |
+| Auth callback route | 2.1 | 2026-07-30 | token_hash+type exchange, routes: new→/onboarding/migration (+?source=bench), returning+conn→/dashboard, returning→/onboarding/connect, fail→/login?error=link_expired. Live DoD blocked by Supabase SMTP. 204/204. commit 3dfb567 |
+| Next.js middleware | 2.2 | 2026-07-30 | @supabase/ssr, getUser(), (dashboard)→/login?next=, /login+session→/dashboard. 204/204. commit 3dfb567 |
+| Organization creation endpoint | 2.3 | 2026-07-30 | POST /api/organizations. Zod (consentGiven: literal true). db.transaction: organizations+org_members+consent_log+subscriptions. 201/401/409. 204/204. commit 3dfb567 |
+| Org onboarding page | 2.5 | 2026-07-30 | 15-option industry select, revenue band, required not-pre-checked consent checkbox. POST /api/organizations → /onboarding/connect. 204/204. commit c80d663 |
+| me/logout endpoints | 2.6 | 2026-07-30 | GET/PATCH/DELETE /api/auth/me + POST /api/auth/logout. AuthMeResponse in api.ts. 204/204. commit 3dfb567 |
+| AI provider verification script | 11.0 | 2026-07-30 | scripts/test-ai-provider.ts. getModel()+streamText. Blocked by zod/v3 subpath in tsx runner (zod-to-json-schema@3.25.2 vs zod@3.24.4) — vitest/Next unaffected. 204/204. commit 34e6487 |
+| System prompt + guardrails + streaming handler | 11.1 | 2026-07-30 | buildSystemPrompt (role+prohibitions+currency instruction+financial context), checkGuardrails (investment/tax/HR/money-movement), handleFinancialQuery (guardrail→stream→disclaimer chunk). 15 new tests. 204/204. commit 34e6487 |
 
 ---
 
 ## Orchestrator Notes
 
 *This section is the persistent context layer between sessions. Update it whenever a session ends mid-task, a decision is made that affects agent assignments, or a dependency chain changes.*
+
+---
+
+### Session 8 — 2026-07-30
+
+**Completed:** Phase 2 (2.0, 2.1, 2.2, 2.3, 2.5, 2.6) and Phase 11 start (11.0, 11.1). 204/204 tests. Auth callback routes new users → /onboarding/migration already.
+
+**Known issue:** `pnpm tsx scripts/test-ai-provider.ts` fails with `ERR_PACKAGE_PATH_NOT_EXPORTED: Package subpath './v3'` from zod-to-json-schema@3.25.2 vs zod@3.24.4. Fix: backend-engineer to bump zod to ^3.25.x in package.json. Does NOT affect app or vitest. Low priority.
+
+**In progress:** 10.0+11.2 delegated to product-engineer; POST /api/conversations + quota.ts delegated to backend-engineer (needed for 11.3).
+
+**Next after backend:** 11.3 (ai-engine-engineer: financial-qa.ts, history.ts, messages route with Upstash rate-limiting). Then 11.4 (conversations history page). Phase 10 continues: 10.1 (refugee page + CSV) → 10.2 → 10.3 → 10.4.
 
 ---
 
