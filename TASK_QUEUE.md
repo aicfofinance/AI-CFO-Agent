@@ -2,8 +2,8 @@
 ## AI CFO Agent
 
 **Last updated:** 2026-07-29  
-**Current phase:** Phase 8 — Intelligence Feed Dashboard  
-**Active agents:** 1 (product-engineer on 8.0)  
+**Current phase:** Phase 9 — Agentic Execution Layer  
+**Active agents:** 1 (ai-engine-engineer on 9.0)  
 
 ---
 
@@ -23,9 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Intelligence Feed healthy + insufficient-data states | 8.2 | product-engineer | 2026-07-29 |
-| Finding dismiss action in UI | 8.3 | product-engineer | 2026-07-29 |
-| Cash flow detail panel + insufficient-data empty state | 8.5 | product-engineer | 2026-07-29 |
+| Draft generation endpoint | 9.0 | ai-engine-engineer | 2026-07-29 |
 
 ---
 
@@ -33,7 +31,8 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Intelligence nav badge live count | 8.6 | product-engineer | 8.0, 7.6 |
+| Draft templates (3 action types) | 9.1 | ai-engine-engineer | 9.0 |
+| PATCH /api/intelligence/actions/:id | 9.2 | ai-engine-engineer | 9.0 |
 
 ---
 
@@ -110,6 +109,10 @@
 | Intelligence Feed page layout + data fetching | 8.0 | 2026-07-29 | Server Component. Fetches /api/intelligence/feed, forwards session cookie, redirect on 401, data sovereignty badge always visible. loading.tsx with 3x FindingCardSkeleton. tsc+lint exit 0. 142/142. commit 5378f7a |
 | Finding card component | 8.1 | 2026-07-29 | Client component with expand/collapse, SeverityBadge, left-border accent, detail+recommendedAction when expanded, disabled Take action btn, Tell me more → /ask?finding_id=[id]. dashboard/page.tsx updated. tsc+lint exit 0. 142/142. commit c8f78a8 |
 | Cash Flow Timeline page and visualization | 8.4 | 2026-07-29 | recharts@2.15. CashFlowChart: ComposedChart green/red bars, blue balance line, zero ReferenceLine, red ReferenceDot on risk dates, rounded-none. DaysTabBar 30/60/90d. 422→progress bar. Disclaimer always visible. tsc+lint exit 0. 142/142. commit 55dfc72 |
+| Intelligence Feed healthy + insufficient-data states | 8.2 | 2026-07-29 | IntelligenceFeedHealthy (6-item checklist, Ask CTA) + IntelligenceFeedBaseline (progress bar, 3 Ask CTAs). Both Server Components. dashboard/page.tsx handles 422→baseline, 0 findings→healthy. commit 2fae7bb |
+| Finding dismiss action in UI | 8.3 | 2026-07-29 | FindingCard: ••• button, Dialog modal with 3 radio reasons, POST /dismiss, opacity-0 fade-out, router.refresh(). commit 2fae7bb |
+| Cash flow detail panel + insufficient-data empty state | 8.5 | 2026-07-29 | CashFlowDetailPanel inline below chart when risk date clicked. Disabled Accelerate btn. cashflow/page.tsx 422 state gains 3 Ask CTAs. commit 2fae7bb |
+| Intelligence nav badge live count | 8.6 | 2026-07-29 | AppNavServer (Server Component) fetches /api/intelligence/feed?limit=1, passes meta.total to AppNav AlertBadge. tsc+lint exit 0. 142/142. commit 1292551 |
 
 ---
 
