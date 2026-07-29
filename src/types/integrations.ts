@@ -97,4 +97,38 @@ export type XeroTenantConnection = {
 
 // ─── CSV ──────────────────────────────────────────────────────────────────────
 
-// CSV types will be added in the CSV import steps.
+/**
+ * A normalised CSV transaction ready for insertion into the `transactions`
+ * table. All monetary values are exact decimal strings; dates are 'YYYY-MM-DD'.
+ *
+ * NOTE: CLAUDE.md requires normalize.ts to return `NormalizedTransaction` from
+ * `src/types/financial.ts`. That file is an empty stub at this implementation
+ * stage (owned by backend-engineer). This type fulfils the same contract and
+ * should be unified with `financial.ts` when backend-engineer adds
+ * `NormalizedTransaction` there.
+ */
+export type NormalizedCSVTransaction = {
+  /** Prefixed SHA-256 hash: 'csv-{first 16 hex chars of sha256(date+type+amount+vendor)}'. */
+  externalId: string;
+  /** 'YYYY-MM-DD' date string converted from QB's MM/DD/YYYY format. */
+  transactionDate: string;
+  /** Always a positive decimal string (e.g. '125.00'). */
+  amount: string;
+  /** Always 'USD' for QB CSV exports — no multi-currency support in V1. */
+  currencyCode: string;
+  /** One of: 'income' | 'expense' | 'transfer' | 'other'. */
+  transactionType: string;
+  /** One of the 15 internal categories or 'other'. */
+  category: string;
+  description: string | null;
+  vendorName: string | null;
+  referenceNumber: string | null;
+  /** Always false for CSV imports — reconciliation status is not reliable in QB export format. */
+  isReconciled: boolean;
+  /**
+   * The raw Account column value submitted to `mapToInternalCategory()`.
+   * Non-null means a name was available; used to decide whether to write to
+   * `data_quality_log` (only log when we had a name but could not map it).
+   */
+  categorySource: string | null;
+};
