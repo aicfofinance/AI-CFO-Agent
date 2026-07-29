@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Intelligence email trigger | 6.8 | ai-engine-engineer | 2026-07-29 |
+| Intelligence fan-out wiring | 6.9 | ai-engine-engineer | 2026-07-29 |
 
 ---
 
@@ -98,6 +98,7 @@
 | AR aging collections opportunity step | 6.5 | 2026-07-29 | runArAgingAnalysis: collections_opportunity finding, relatedData.invoices[]. High severity at $5k+. 8 tests. 103/103. tsc+lint exit 0. commit 1768c9c |
 | Duplicate subscription scan | 6.6 | 2026-07-29 | runDuplicateSubscriptionScan: same vendor/diff accounts/within 10%. duplicate_subscription finding. 9 tests. 103/103. tsc+lint exit 0. commit 1768c9c |
 | Finding storage and run completion | 6.7 | 2026-07-29 | insertFindingDeduped: same-day dedup. mark-completed step: intelligence_runs.completed + connections.lastIntelligenceRunAt. 4 new tests. 107/107. tsc+lint exit 0. commit aade49c |
+| Intelligence email trigger | 6.8 | 2026-07-29 | intelligenceEmail Inngest fn. Resend via env.RESEND_API_KEY. Severity-gated (critical/high only). Prior-run dedup by severity. vitest.config.ts @/jobs alias added. 15 new tests. 122/122. tsc+lint exit 0. commit 97a085e |
 
 ---
 

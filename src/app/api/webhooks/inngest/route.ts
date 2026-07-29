@@ -3,6 +3,7 @@ import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest";
 import { syncFanOut } from "@/jobs/sync/fan-out";
 import { syncSingleOrg } from "@/jobs/sync/single-org";
+import { intelligenceFanOut } from "@/jobs/intelligence/fan-out";
 import { intelligenceRun } from "@/jobs/intelligence/run";
 import { intelligenceEmail } from "@/jobs/intelligence/email";
 
@@ -13,5 +14,5 @@ import { intelligenceEmail } from "@/jobs/intelligence/email";
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [syncFanOut, syncSingleOrg, intelligenceRun, intelligenceEmail],
+  functions: [syncFanOut, syncSingleOrg, intelligenceFanOut, intelligenceRun, intelligenceEmail],
 });
