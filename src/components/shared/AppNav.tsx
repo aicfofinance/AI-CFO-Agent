@@ -28,7 +28,11 @@ function navItemClass(active: boolean): string {
   return `${base} text-gray-600 hover:bg-gray-100`;
 }
 
-export function AppNav(): React.JSX.Element {
+type AppNavProps = {
+  findingCount?: number;
+};
+
+export function AppNav({ findingCount = 0 }: AppNavProps): React.JSX.Element {
   const pathname = usePathname();
 
   function isActive(href: string): boolean {
@@ -60,7 +64,7 @@ export function AppNav(): React.JSX.Element {
               >
                 <span className="relative shrink-0">
                   <Icon size={18} aria-hidden={true} />
-                  {showAlertBadge === true && <AlertBadge count={0} />}
+                  {showAlertBadge === true && <AlertBadge count={findingCount} />}
                 </span>
                 {label}
               </Link>

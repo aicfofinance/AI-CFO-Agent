@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AppNav } from "@/components/shared/AppNav";
+import { AppNavServer } from "@/components/shared/AppNavServer";
 
 type DashboardLayoutProps = {
   children: ReactNode;
@@ -8,7 +8,7 @@ type DashboardLayoutProps = {
 export default function DashboardLayout({ children }: DashboardLayoutProps): React.JSX.Element {
   return (
     <div className="flex">
-      <AppNav />
+      <AppNavServer />
       <main className="flex-1 min-h-screen bg-surface-page p-8">{children}</main>
     </div>
   );
