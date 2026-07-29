@@ -82,6 +82,18 @@ declare module "node-quickbooks" {
      * @param callback - Called with (error, CompanyInfoResponse) on completion.
      */
     getCompanyInfo(realmId: string, callback: QBCallback<CompanyInfoResponse>): void;
+
+    /**
+     * Queries the QuickBooks Chart of Accounts.
+     * The result is typed as `unknown` here because the concrete account shape
+     * (`QBAccount`) is defined locally in the import module that calls this method.
+     * Callers must narrow or assert the result type after receiving it.
+     *
+     * @param criteria - Query criteria object (pass `{}` to fetch all accounts).
+     * @param callback - Called with (error, result) where result contains a
+     *   `QueryResponse.Account` array on success.
+     */
+    findAccounts(criteria: Record<string, unknown>, callback: QBCallback<unknown>): void;
   }
 
   export = QuickBooks;
