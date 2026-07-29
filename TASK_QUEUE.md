@@ -1,9 +1,9 @@
 # Task Queue
 ## AI CFO Agent
 
-**Last updated:** 2026-07-29  
+**Last updated:** 2026-07-30  
 **Current phase:** Phase 9 — Agentic Execution Layer  
-**Active agents:** 1 (ai-engine-engineer on 9.0)  
+**Active agents:** 1 (product-engineer on 9.3)  
 
 ---
 
@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Draft generation endpoint | 9.0 | ai-engine-engineer | 2026-07-29 |
+| AgenticModal states 1+2 (confirm + loading) | 9.3 | product-engineer | 2026-07-30 |
 
 ---
 
@@ -31,8 +31,8 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Draft templates (3 action types) | 9.1 | ai-engine-engineer | 9.0 |
-| PATCH /api/intelligence/actions/:id | 9.2 | ai-engine-engineer | 9.0 |
+| AgenticModal state 3 (review + inline edit) | 9.4 | product-engineer | 9.3 |
+| AgenticModal state 4 (copy) + no-email fallback | 9.5 | product-engineer | 9.4 |
 
 ---
 
@@ -113,12 +113,25 @@
 | Finding dismiss action in UI | 8.3 | 2026-07-29 | FindingCard: ••• button, Dialog modal with 3 radio reasons, POST /dismiss, opacity-0 fade-out, router.refresh(). commit 2fae7bb |
 | Cash flow detail panel + insufficient-data empty state | 8.5 | 2026-07-29 | CashFlowDetailPanel inline below chart when risk date clicked. Disabled Accelerate btn. cashflow/page.tsx 422 state gains 3 Ask CTAs. commit 2fae7bb |
 | Intelligence nav badge live count | 8.6 | 2026-07-29 | AppNavServer (Server Component) fetches /api/intelligence/feed?limit=1, passes meta.total to AppNav AlertBadge. tsc+lint exit 0. 142/142. commit 1292551 |
+| Draft generation endpoint | 9.0 | 2026-07-29 | POST /findings/:id/draft-action. resolveActionType mapper. getModel(0.5), generateText, 429→503. Idempotent. Schema corrections: actionType+userId NOT NULL. tsc+lint exit 0. 142/142. commit 20e7ede |
+| Draft templates (3 action types) | 9.1 | 2026-07-30 | invoice-acceleration + subscription-cancellation + vendor-negotiation. 18 new tests (7+5+6). 160/160 total. tsc+lint exit 0. |
+| PATCH /api/intelligence/actions/:id | 9.2 | 2026-07-30 | draft→approved→copied legal transitions, dual write on copied (draft+finding actioned), 400 on illegal transitions. tsc+lint exit 0. |
 
 ---
 
 ## Orchestrator Notes
 
 *This section is the persistent context layer between sessions. Update it whenever a session ends mid-task, a decision is made that affects agent assignments, or a dependency chain changes.*
+
+---
+
+### Session 7 — 2026-07-30
+
+**Completed:** 9.1 (draft templates, 18 new tests → 160 total) and 9.2 (PATCH actions endpoint). Both verified: tsc+lint exit 0, 160/160 tests pass.
+
+**In progress:** 9.3 (AgenticModal states 1+2) → delegated to product-engineer. Dependencies: 8.1 (FindingCard) and 9.0 (draft endpoint) both complete.
+
+**Next:** 9.3 → 9.4 (review state) → 9.5 (copy+fallback) → 9.6 (confirmation+tracking) → 9.7 (wire CTAs). All product-engineer tasks sequential.
 
 ---
 
