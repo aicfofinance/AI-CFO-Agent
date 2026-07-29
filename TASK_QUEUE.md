@@ -2,8 +2,8 @@
 ## AI CFO Agent
 
 **Last updated:** 2026-07-30  
-**Current phase:** Phase 11 — Reactive Q&A Interface (Phase 10 in parallel)  
-**Active agents:** 2  
+**Current phase:** Phase 10 + 11 (onboarding + conversations) with 10.5 in parallel  
+**Active agents:** 3  
 
 ---
 
@@ -23,8 +23,9 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Messages API + streaming rendering | 11.3 | ai-engine-engineer | 2026-07-30 |
-| Xero integration | 12.0 | integration-engineer | 2026-07-30 |
+| Conversation history UI pages | 11.4-ui | product-engineer | 2026-07-30 |
+| Refugee welcome page + CSV UI | 10.1-ui | product-engineer | 2026-07-30 |
+| Data & Privacy export endpoint | 10.5-api | backend-engineer | 2026-07-30 |
 
 ---
 
@@ -32,12 +33,8 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Chat UI wiring (/ask streaming integration) | 11.3-ui | product-engineer | 11.3 (route) |
-| Refugee welcome page + CSV upload | 10.1 | product-engineer + integration-engineer | 10.0 |
-| Start fresh + connect screen update | 10.2 | product-engineer | 10.1 |
-| Data & Privacy settings + export endpoint | 10.5 | backend-engineer + product-engineer | 2.6 ✓ |
-| Conversation history and 12-month cleanup | 11.4 | backend-engineer + product-engineer | 11.3 |
-| Refugee welcome page + CSV upload | 10.1 | integration-engineer + product-engineer | 10.0 ✓ |
+| Start fresh + connect screen update | 10.2 | product-engineer | 10.1 (10.1-api ✓ + 10.1-ui) |
+| Data & Privacy settings UI | 10.5-ui | product-engineer | 10.5-api |
 
 ---
 
@@ -145,12 +142,40 @@
 | me/logout endpoints | 2.6 | 2026-07-30 | GET/PATCH/DELETE /api/auth/me + POST /api/auth/logout. AuthMeResponse in api.ts. 204/204. commit 3dfb567 |
 | AI provider verification script | 11.0 | 2026-07-30 | scripts/test-ai-provider.ts. getModel()+streamText. Blocked by zod/v3 subpath in tsx runner (zod-to-json-schema@3.25.2 vs zod@3.24.4) — vitest/Next unaffected. 204/204. commit 34e6487 |
 | System prompt + guardrails + streaming handler | 11.1 | 2026-07-30 | buildSystemPrompt (role+prohibitions+currency instruction+financial context), checkGuardrails (investment/tax/HR/money-movement), handleFinancialQuery (guardrail→stream→disclaimer chunk). 15 new tests. 204/204. commit 34e6487 |
+| Messages API endpoint + streaming rendering | 11.3 + 11.3-ui | 2026-07-30 | POST /api/conversations/:id/messages: quota (FOR UPDATE), Upstash rate-limit, guardrails, history window, system prompt, streamText, disclaimer chunk, persist messages+query_log, X-Queries-Remaining header. AIResponse+UserMessage components. ask/page.tsx fully wired (SSE stream, quota exhaustion). 242/242. tsc+lint exit 0. commits 92b2e61+14fff08 |
+| Xero OAuth, import, normalize, sync branch | 12.0 + 12.1-partial | 2026-07-30 | Xero PKCE OAuth (initiate+callback), 409 QB/Xero exclusivity, getXeroClient (rotating refresh), importXeroAccounts+importXeroTransactions+incrementalXeroSync, normalizeXeroInvoice+normalizeXeroBankTransaction (20 tests), categories.ts extended, single-org.ts branches on provider='xero'. 242/242. tsc+lint exit 0. commit 3e5ea4c |
+| Conversation history API + connections list + cleanup | 11.4-api | 2026-07-30 | GET /api/conversations (cursor-paginated, messageCount+lastMessageAt in SQL), GET /api/conversations/:id (404 vs 403 multi-tenancy), GET /api/conversations/export (JSON attachment, 1/hr rate-limit), GET /api/connections (stub replaced, 8 safe fields), messageCleanup Inngest cron (NULLs query_log refs before delete). Types in api.ts. 267/267 tests. tsc+lint exit 0. commit 4f5040a |
+| CSV parser, normalizer, POST /api/connections/csv | 10.1-api | 2026-07-30 | papaparse@5.5, parseQBCSV (handles QB report header quirk), normalizeCSVRow (QB_TYPE_MAP, sha256 externalId, always USD), 25 tests. POST route: 10MB limit, batch upsert, data_quality_log for unmapped, csv connections row+sync_jobs. 267/267 tests. tsc+lint exit 0. commit 775496f |
+| Connections settings page | 12.1-ui | 2026-07-30 | /settings/connections: two provider cards (QB+Xero), active shows status badge+dates, inactive greyed with connect link, other-connected-blocks-switch logic, CSV note, loading.tsx skeletons. ConnectionSummary from @/types/api. tsc+lint exit 0. commit 0a762af |
 
 ---
 
 ## Orchestrator Notes
 
 *This section is the persistent context layer between sessions. Update it whenever a session ends mid-task, a decision is made that affects agent assignments, or a dependency chain changes.*
+
+---
+
+### Session 9 — 2026-07-30
+
+**Completed this session:** 11.3-ui (chat UI components + /ask streaming wiring, commit 14fff08) and 12.0+12.1-partial (Xero OAuth+import+normalize+sync branch, commit 3e5ea4c). 242/242 tests. tsc+lint exit 0.
+
+**Three parallel tasks running:**
+1. backend-engineer → 11.4-api: implement GET /api/conversations (cursor-paginated), GET /api/conversations/:id (messages), GET /api/conversations/export, GET /api/connections (STUB needs real implementation), 12-month cleanup in jobs/billing/reset-quotas.ts. Export ConversationListResponse+ConversationDetailResponse+ConnectionListResponse to src/types/api.ts.
+2. integration-engineer → 10.1-api: install papaparse@5.5, implement src/lib/integrations/csv/parser.ts + csv/normalize.ts + POST /api/connections/csv route.
+3. product-engineer → 12.1-ui: create /settings/connections/page.tsx (active connection card with status+lastSync+lastIntelligenceRun, both provider options visible, inactive greyed). Calls GET /api/connections (will be implemented by backend-engineer in parallel).
+
+**Next after these complete:**
+- product-engineer → 11.4-ui: conversations/page.tsx + conversations/[id]/page.tsx (after 11.4-api done)
+- product-engineer → 10.1-ui: onboarding/refugee/page.tsx + onboarding/csv/page.tsx (after 10.1-api done)
+- Then 10.2, 10.3, 10.4, 10.5 in sequence
+
+**Key known state:**
+- GET /api/connections is a stub — backend-engineer must implement it as part of 11.4-api task
+- GET /api/conversations is missing (route.ts only has POST)
+- GET /api/conversations/:id is a stub
+- src/lib/integrations/csv/parser.ts and normalize.ts are empty stubs
+- settings/connections/page.tsx is a stub
 
 ---
 
