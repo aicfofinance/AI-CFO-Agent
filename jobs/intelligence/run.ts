@@ -10,6 +10,7 @@ import {
   isCashFlowRisk,
   storeCashFlowProjection,
 } from "@/lib/financial/intelligence/cash-flow";
+import { runAnomalyDetection, runMarginDetection } from "@/lib/financial/intelligence/anomaly";
 import { db } from "@/lib/platform/db/client";
 import { intelligenceRuns, syncJobs, transactions } from "@/lib/platform/db/schema";
 import { inngest } from "@/lib/inngest";
@@ -173,7 +174,31 @@ export const intelligenceRun = inngest.createFunction(
       }
     }
 
-    // Steps 6.3–6.7 add the remaining isolated analysis steps here, each as its
-    // own `step.run()` call, followed by a `mark-completed` step.
+    // ── Step 6.3: anomaly detection (isolated analysis step) ───────────────────
+    // Expense spike + collections slippage. Its own `step.run()` — never combined
+    // with cash flow or margin analysis (CLAUDE.md, Intelligence Engine Rules) so
+    // it completes well under the 8-second Vercel Hobby budget in isolation. On a
+    // 429 the run has already been marked `status = 'skipped'`, `skipped_reason =
+    // 'rate_limit'` inside `runAnomalyDetection`; return cleanly — never throw, never
+    // fail over to another provider.
+    const anomalyResult = await step.run("anomaly-detection", () =>
+      runAnomalyDetection(orgId, runId),
+    );
+    if (anomalyResult.status === "skipped") {
+      return;
+    }
+
+    // ── Step 6.4: margin deterioration detection (isolated analysis step) ──────
+    // Current MTD gross margin vs the same period a year ago. Separate `step.run()`,
+    // never combined with anomaly detection. Skips silently when the org has fewer
+    // than 12 months of history. Same 429 skip contract as above.
+    const marginResult = await step.run("margin-detection", () => runMarginDetection(orgId, runId));
+    if (marginResult.status === "skipped") {
+      return;
+    }
+
+    // Steps 6.5–6.7 add the remaining isolated analysis steps here (AR aging
+    // collections opportunity, duplicate subscription scan, mark-completed), each
+    // as its own `step.run()` call.
   },
 );
