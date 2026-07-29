@@ -3,7 +3,7 @@
 
 **Last updated:** 2026-07-29  
 **Current phase:** Phase 6 — Proactive Intelligence Engine  
-**Active agents:** 0 (Phase 5 complete, Phase 6 starting)  
+**Active agents:** 1 (ai-engine-engineer on 6.2)  
 
 ---
 
@@ -23,6 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
+| Cash flow projection intelligence step | 6.2 | ai-engine-engineer | 2026-07-29 |
 
 ---
 
@@ -30,6 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
+| Anomaly detection step | 6.3 | ai-engine-engineer | 6.2 |
 
 ---
 
@@ -89,6 +91,8 @@
 | AI financial context builder | 5.8 | 2026-07-29 | buildFinancialContext: 3-mo P&L+cash+top5 categories+AR aging. formatCurrency. <8000 chars, no nulls. 4/4 tests. tsc+lint exit 0. |
 | Financial summary API endpoint | 5.9 | 2026-07-29 | GET /api/financial/summary: Promise.all, standard envelope, FinancialSummaryResponse in api.ts. 46/46 tests. tsc+lint exit 0. |
 | Cash flow projection storage + API | 5.7 | 2026-07-29 | storeCashFlowProjection (db.transaction read-then-write). GET /api/cashflow/projection: 422 on <60d, confidenceLevel always present. 46/46 tests. tsc+lint exit 0. |
+| Intelligence runner scaffold and guards | 6.0 | 2026-07-29 | intelligenceRun Inngest fn, 2 guards (60d history + sync_jobs check), skipped_reason set, returns clean. Registered in serve handler. tsc+lint exit 0. |
+| AI provider routing utility | 6.1 | 2026-07-29 | getModel(complexity) → gemini-2.0-flash or claude-sonnet/haiku-4.5 by threshold 0.7. detectRateLimitError. AI SDK packages installed. 15/15 tests. tsc+lint exit 0. |
 
 ---
 

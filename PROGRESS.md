@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Phase 6** — Proactive Intelligence Engine (starting)
+**Step 6.2** — Cash flow projection intelligence step (in progress)
 
 **Active Decision — Step 2.4 expedited:** Step 2.4 (`getRequestContext`) was implemented before Step 4.2 even though 2.0/2.1 are blocked (Supabase SMTP external action). The code and unit tests are complete; live auth verification awaits 2.0. All Phase 4 API endpoints depend on `getRequestContext()` so this unblocks the entire integration layer.
 
@@ -97,6 +97,8 @@
 | 5.8 | AI financial context builder | 2026-07-29 | buildFinancialContext: 3-mo P&L+cash+categories+AR. formatCurrency. <8k chars, no nulls. 4/4 tests. tsc+lint exit 0. |
 | 5.9 | Financial summary API endpoint | 2026-07-29 | GET /api/financial/summary: Promise.all, standard envelope. FinancialSummaryResponse in api.ts. 46/46 tests. tsc+lint exit 0. |
 | 5.7 | Cash flow projection storage + API | 2026-07-29 | storeCashFlowProjection (db.transaction). GET /api/cashflow/projection: 422 on <60d, confidenceLevel present. 46/46 tests. tsc+lint exit 0. |
+| 6.0 | Intelligence runner scaffold and guards | 2026-07-29 | intelligenceRun Inngest fn, guard1 (60d), guard2 (sync_jobs), clean skip, registered in serve handler. 61/61 tests. tsc+lint exit 0. |
+| 6.1 | AI provider routing utility | 2026-07-29 | getModel (google/anthropic), detectRateLimitError, AI SDK installed, sole router.ts owner. 15/15 tests. 61/61 total. tsc+lint exit 0. |
 
 ---
 
