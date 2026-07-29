@@ -270,3 +270,13 @@ body {
     @apply font-sans;
   }
 }
+
+/* AgenticModal — indeterminate progress bar animation (State 2: generating) */
+@keyframes agentic-progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.animate-agentic-progress {
+  animation: agentic-progress 1.5s ease-in-out infinite;
+}

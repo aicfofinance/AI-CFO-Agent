@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { DataTimestamp } from "@/components/shared/DataTimestamp";
 import { SeverityBadge } from "@/components/shared/SeverityBadge";
+import { AgenticModal } from "@/components/dashboard/AgenticModal";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -89,11 +90,13 @@ const DISMISS_OPTIONS: { value: DismissReason; label: string }[] = [
 
 export function FindingCard({
   id,
+  findingType,
   severity,
   headline,
   detail,
   recommendedAction,
   hasActionableType,
+  relatedData,
   createdAt,
   onDismiss,
 }: FindingCardProps): React.JSX.Element {
@@ -102,6 +105,7 @@ export function FindingCard({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDismissing, setIsDismissing] = useState(false);
   const [showDismissModal, setShowDismissModal] = useState(false);
+  const [showAgenticModal, setShowAgenticModal] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
   const [dismissReason, setDismissReason] = useState<DismissReason>("acknowledged");
 
@@ -192,7 +196,11 @@ export function FindingCard({
 
           {/* Action row */}
           <div className="flex items-center gap-3 mt-4">
-            <Button size="sm" disabled={!hasActionableType}>
+            <Button
+              size="sm"
+              disabled={!hasActionableType}
+              onClick={hasActionableType ? () => setShowAgenticModal(true) : undefined}
+            >
               Take action
             </Button>
             <Link
@@ -203,6 +211,20 @@ export function FindingCard({
             </Link>
           </div>
         </div>
+      )}
+
+      {/* --------------------------------------------------------------- */}
+      {/* Agentic action modal                                              */}
+      {/* --------------------------------------------------------------- */}
+      {hasActionableType && (
+        <AgenticModal
+          open={showAgenticModal}
+          onOpenChange={setShowAgenticModal}
+          findingId={id}
+          findingType={findingType}
+          headline={headline}
+          relatedData={relatedData}
+        />
       )}
 
       {/* --------------------------------------------------------------- */}
