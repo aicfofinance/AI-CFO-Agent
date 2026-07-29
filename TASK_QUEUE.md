@@ -23,9 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Cash flow projection algorithm | 5.6 | ai-engine-engineer | 2026-07-29 |
-| AI financial context builder | 5.8 | ai-engine-engineer | 2026-07-29 |
-| Financial summary API endpoint | 5.9 | backend-engineer | 2026-07-29 |
+| Cash flow projection storage + API | 5.7 | ai-engine-engineer | 2026-07-29 |
 
 ---
 
@@ -33,7 +31,6 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Cash flow projection storage + API | 5.7 | ai-engine-engineer | 5.6 |
 
 ---
 
@@ -88,6 +85,10 @@
 | Period comparison and trend data | 5.3 | 2026-07-29 | getPeriodComparison+getMonthlyRevenueTrend. 150/100→'50.00'/up. 3/3 tests. tsc+lint exit 0. |
 | AR aging schedule builder | 5.4 | 2026-07-29 | buildArAgingSchedule: 5 buckets, projectedPaymentDate+confidenceLevel always non-null. 4/4 tests. tsc+lint exit 0. |
 | Recurring expense detection | 5.5 | 2026-07-29 | detectRecurringExpenses: 25-35d cycle + 10% tolerance. Median amount as original string. 3/3 tests (AWS scenario verified). tsc+lint exit 0. |
+| Cash flow projection algorithm | 5.6 | 2026-07-29 | buildCashFlowProjection: balance+AR inflows+recurring outflows, daily array, minimumProjectedBalance, riskDate. 5/5 tests. tsc+lint exit 0. |
+| format.ts (expedited) | — | 2026-07-29 | formatCurrency/formatPercent/formatDate. Unicode minus for negatives. Unblocks 5.8. |
+| AI financial context builder | 5.8 | 2026-07-29 | buildFinancialContext: 3-mo P&L+cash+top5 categories+AR aging. formatCurrency. <8000 chars, no nulls. 4/4 tests. tsc+lint exit 0. |
+| Financial summary API endpoint | 5.9 | 2026-07-29 | GET /api/financial/summary: Promise.all, standard envelope, FinancialSummaryResponse in api.ts. 46/46 tests. tsc+lint exit 0. |
 
 ---
 

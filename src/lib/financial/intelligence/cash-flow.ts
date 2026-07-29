@@ -1,7 +1,10 @@
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 
+import { getCashPosition } from "@/lib/financial/calculations/cash-flow";
 import { db } from "@/lib/platform/db/client";
 import { transactions } from "@/lib/platform/db/schema";
+
+import { buildArAgingSchedule } from "./ar-aging";
 
 /**
  * A vendor charge that repeats on a stable monthly-ish cycle with a stable
@@ -180,4 +183,173 @@ export async function detectRecurringExpenses(orgId: string): Promise<RecurringE
   results.sort((a, b) => parseFloat(b.expectedAmount) - parseFloat(a.expectedAmount));
 
   return results;
+}
+
+/** Confidence in a projection, keyed off how much transaction history exists. */
+export type CashFlowConfidenceLevel = "low" | "medium" | "high";
+
+/** How far out a projection may run. */
+export type ProjectionPeriodDays = 30 | 60 | 90;
+
+/**
+ * One day of the projection. Every monetary field is a DECIMAL(15,2) string
+ * (`.toFixed(2)`), never a JS number — floats never cross the boundary of this
+ * function (CLAUDE.md, Financial Data Rules).
+ */
+export type DailyBalance = {
+  date: string; // ISO date string 'YYYY-MM-DD'
+  projectedBalance: string; // DECIMAL string — running balance at end of day
+  inflows: string; // DECIMAL string — expected to arrive this day
+  outflows: string; // DECIMAL string — expected outgoing this day
+};
+
+/**
+ * A forward-looking cash-flow projection. Always carries `confidenceLevel`
+ * (CLAUDE.md: a projection is never returned without one) and a `riskDate` that
+ * is the first day the balance is projected to go negative, or `null` if it
+ * never does.
+ */
+export type CashFlowProjection = {
+  orgId: string;
+  projectedDays: DailyBalance[];
+  minimumProjectedBalance: string; // DECIMAL string — lowest end-of-day balance
+  riskDate: string | null; // first date the balance goes negative, or null
+  confidenceLevel: CashFlowConfidenceLevel;
+  generatedAt: string; // ISO timestamp
+};
+
+const HISTORY_DAYS_MEDIUM = 90;
+const HISTORY_DAYS_HIGH = 180;
+
+/** Parse a `YYYY-MM-DD` string to the epoch ms of its UTC midnight. */
+function projectionUtcMidnightMs(dateStr: string): number {
+  return Date.parse(`${dateStr}T00:00:00Z`);
+}
+
+/** Format epoch ms as an ISO `YYYY-MM-DD` date string. */
+function projectionFormatUtcDate(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+/**
+ * History-length → confidence mapping (CLAUDE.md thresholds):
+ *   < 90 days   → 'low'
+ *   90–180 days → 'medium'
+ *   >= 180 days → 'high'
+ * A null `minDate` (no transactions) is treated as no history → 'low'.
+ */
+function confidenceFromHistory(minDate: string | null, todayMs: number): CashFlowConfidenceLevel {
+  if (minDate === null) {
+    return "low";
+  }
+  const historyDays = Math.floor((todayMs - projectionUtcMidnightMs(minDate)) / MS_PER_DAY);
+  if (historyDays < HISTORY_DAYS_MEDIUM) {
+    return "low";
+  }
+  if (historyDays < HISTORY_DAYS_HIGH) {
+    return "medium";
+  }
+  return "high";
+}
+
+/**
+ * Build a daily cash-flow projection for the next `periodDays` days.
+ *
+ * Combines three sources:
+ *   1. Current cash position (`getCashPosition`) — the starting balance.
+ *   2. Projected inflows — AR invoices from `buildArAgingSchedule`, landed on
+ *      their `projectedPaymentDate`.
+ *   3. Projected outflows — recurring expenses from `detectRecurringExpenses`,
+ *      landed on their `nextExpectedDate`.
+ *
+ * The projection walks day-by-day from tomorrow (today + 1) through
+ * today + `periodDays` (inclusive), producing exactly `periodDays` entries. Each
+ * day's end-of-day balance is `previousBalance + inflows - outflows`.
+ *
+ * MONETARY ARITHMETIC NOTE: this is the one intelligence routine that must sum
+ * money in JS — a running daily balance is inherently sequential and cannot be
+ * expressed as a single SQL aggregate over the source rows. `parseFloat` is used
+ * for the running total ONLY; every value stored in a `DailyBalance` and every
+ * value returned (`minimumProjectedBalance`) is re-serialised to a 2-dp string
+ * via `.toFixed(2)`, so no float crosses this function's boundary.
+ *
+ * No AI provider is called here — this is deterministic arithmetic.
+ *
+ * @param orgId Current org id from `getRequestContext()`. Every underlying query
+ *   is org-scoped.
+ * @param periodDays 30, 60, or 90.
+ */
+export async function buildCashFlowProjection(
+  orgId: string,
+  periodDays: ProjectionPeriodDays,
+): Promise<CashFlowProjection> {
+  const startingBalance = await getCashPosition(orgId);
+  const arSchedule = await buildArAgingSchedule(orgId);
+  const recurringExpenses = await detectRecurringExpenses(orgId);
+
+  // Bucket expected inflows and outflows by the ISO day they land on.
+  const inflowsByDate = new Map<string, number>();
+  for (const invoice of arSchedule.invoices) {
+    const prior = inflowsByDate.get(invoice.projectedPaymentDate) ?? 0;
+    inflowsByDate.set(invoice.projectedPaymentDate, prior + parseFloat(invoice.amount));
+  }
+
+  const outflowsByDate = new Map<string, number>();
+  for (const expense of recurringExpenses) {
+    const prior = outflowsByDate.get(expense.nextExpectedDate) ?? 0;
+    outflowsByDate.set(expense.nextExpectedDate, prior + parseFloat(expense.expectedAmount));
+  }
+
+  const todayMs = projectionUtcMidnightMs(projectionFormatUtcDate(Date.now()));
+
+  // Walk the projection window day by day, carrying the running balance.
+  let runningBalance = parseFloat(startingBalance);
+  const projectedDays: DailyBalance[] = [];
+  let minimumBalance = Number.POSITIVE_INFINITY;
+  let riskDate: string | null = null;
+
+  for (let dayOffset = 1; dayOffset <= periodDays; dayOffset += 1) {
+    const dateStr = projectionFormatUtcDate(todayMs + dayOffset * MS_PER_DAY);
+    const dayInflows = inflowsByDate.get(dateStr) ?? 0;
+    const dayOutflows = outflowsByDate.get(dateStr) ?? 0;
+
+    runningBalance = runningBalance + dayInflows - dayOutflows;
+
+    projectedDays.push({
+      date: dateStr,
+      projectedBalance: runningBalance.toFixed(2),
+      inflows: dayInflows.toFixed(2),
+      outflows: dayOutflows.toFixed(2),
+    });
+
+    if (runningBalance < minimumBalance) {
+      minimumBalance = runningBalance;
+    }
+    if (riskDate === null && runningBalance < 0) {
+      riskDate = dateStr;
+    }
+  }
+
+  // Guard the empty-window edge (periodDays is always >= 30, but be explicit).
+  const minimumProjectedBalance = Number.isFinite(minimumBalance)
+    ? minimumBalance.toFixed(2)
+    : parseFloat(startingBalance).toFixed(2);
+
+  // Confidence from how many days of transaction history the org has.
+  const [minRow] = await db
+    .select({
+      minDate: sql<string | null>`MIN(${transactions.transactionDate})`,
+    })
+    .from(transactions)
+    .where(eq(transactions.orgId, orgId));
+  const confidenceLevel = confidenceFromHistory(minRow?.minDate ?? null, todayMs);
+
+  return {
+    orgId,
+    projectedDays,
+    minimumProjectedBalance,
+    riskDate,
+    confidenceLevel,
+    generatedAt: new Date().toISOString(),
+  };
 }

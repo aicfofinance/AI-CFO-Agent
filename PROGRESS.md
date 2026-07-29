@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Steps 5.6 + 5.8 + 5.9** — Cash flow projection + AI context builder + financial summary API (in progress, parallel)
+**Step 5.7** — Cash flow projection storage + API endpoint (in progress)
 
 **Active Decision — Step 2.4 expedited:** Step 2.4 (`getRequestContext`) was implemented before Step 4.2 even though 2.0/2.1 are blocked (Supabase SMTP external action). The code and unit tests are complete; live auth verification awaits 2.0. All Phase 4 API endpoints depend on `getRequestContext()` so this unblocks the entire integration layer.
 
@@ -91,6 +91,10 @@
 | 5.3 | Period comparison and trend data | 2026-07-29 | getPeriodComparison+getMonthlyRevenueTrend, 3/3 tests, DoD verified. tsc+lint exit 0. |
 | 5.4 | AR aging schedule builder | 2026-07-29 | buildArAgingSchedule: 5 buckets, projectedPaymentDate+confidenceLevel non-null. 4/4 tests. tsc+lint exit 0. |
 | 5.5 | Recurring expense detection | 2026-07-29 | detectRecurringExpenses: 25-35d cycle, 10% tolerance, median string. AWS scenario verified. 3/3 tests. tsc+lint exit 0. |
+| 5.6 | Cash flow projection algorithm | 2026-07-29 | buildCashFlowProjection: daily balance array, riskDate, minimumProjectedBalance, confidenceLevel. 5/5 tests. tsc+lint exit 0. |
+| — | format.ts (expedited) | 2026-07-29 | formatCurrency/formatPercent/formatDate. Unicode minus. Unblocked 5.8 tsc. |
+| 5.8 | AI financial context builder | 2026-07-29 | buildFinancialContext: 3-mo P&L+cash+categories+AR. formatCurrency. <8k chars, no nulls. 4/4 tests. tsc+lint exit 0. |
+| 5.9 | Financial summary API endpoint | 2026-07-29 | GET /api/financial/summary: Promise.all, standard envelope. FinancialSummaryResponse in api.ts. 46/46 tests. tsc+lint exit 0. |
 
 ---
 
