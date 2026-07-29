@@ -23,7 +23,8 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| RLS policies and isolation function | 3.9 | backend-engineer | 2026-07-28 |
+| QB developer app setup (package install + auth.ts) | 4.0 | integration-engineer | 2026-07-28 |
+| OAuth token encryption utilities | 4.1 | backend-engineer | 2026-07-28 |
 
 ---
 
@@ -31,7 +32,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| *(unlocks after 3.9 completes)* | | | |
+| QB OAuth initiate (read-only scopes) | 4.2 | integration-engineer | 4.0, 4.1, 3.2 |
 
 ---
 
@@ -66,6 +67,8 @@
 | Alerts, reports, subscriptions schema | 3.6 | 2026-07-28 | alerts + alert_configs (UNIQUE org+type) + reports (UNIQUE org+period+type) + subscriptions (UNIQUE org). DECIMAL(7,4) for percentages. Migration 0005_ordinary_the_spike.sql. DB pending CI. |
 | Intelligence engine schema | 3.7 | 2026-07-28 | intelligence_runs + findings (CHECK headline<=120) + action_drafts + cash_flow_projections. findings_headline_max_120 CHECK in generated SQL. Migration 0006_narrow_mordo.sql. DB pending CI. |
 | Compliance and P2 schema | 3.8 | 2026-07-28 | consent_log (inet ip_address, no org FK) + firm_clients (firm_not_own_client CHECK). Migration 0007_tiny_pixie.sql. All 21 tables now defined. DB pending CI. commit dfddb51 |
+| RLS policies and isolation function | 3.9 | 2026-07-28 | rls-policies.sql: get_accessible/writable_org_ids() SECURITY DEFINER, 21 ENABLE RLS, 80 policies. consent_log append-only. firm_clients OR clause. Apply via Supabase SQL Editor (SETUP.md §3). DB verify pending CI. commit a0bbf3c |
+| Seed data | 3.10 | 2026-07-28 | scripts/seed.ts: Demo Corp org, 4 alert_configs, 4 accounts, 636 tx (180 days), 7 monthly snapshots. All upserts. Monetary arithmetic in SQL. Live run pending CI (port 6543 blocked). commit 21d1503 |
 
 ---
 

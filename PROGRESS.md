@@ -17,13 +17,13 @@
 
 ## Current Phase
 
-**Phase 1: Foundation** — in progress
+**Phase 4: QuickBooks Integration** — in progress (Phase 3 complete)
 
 ---
 
 ## Current Step
 
-**Step 3.9 — RLS policies and isolation function** — in progress
+**Steps 4.0 + 4.1 (parallel)** — in progress
 
 ---
 
@@ -33,8 +33,8 @@
 |---|---|---|---|
 | 1 | Foundation | 1.0–1.7 | 🔄 In progress (1.0, 1.1, 1.2, 1.3, 1.4, 1.7 done; 1.5/1.6 blocked: external) |
 | 2 | Authentication & Multi-tenancy | 2.0–2.6 | 🔲 Not started |
-| 3 | Database Schema | 3.0–3.10 | 🔄 In progress (3.0–3.8 done; 3.9 in progress) |
-| 4 | QuickBooks Integration | 4.0–4.10 | 🔲 Not started |
+| 3 | Database Schema | 3.0–3.10 | ✅ Complete |
+| 4 | QuickBooks Integration | 4.0–4.10 | 🔄 In progress (4.0, 4.1 in progress) |
 | 5 | Financial Data Layer + Cash Flow Projection | 5.0–5.9 | 🔲 Not started |
 | 6 | Proactive Intelligence Engine | 6.0–6.12 | 🔲 Not started |
 | 7 | Core Frontend — Layout + Design System | 7.0–7.6 | 🔲 Not started |
@@ -69,6 +69,8 @@
 | 3.6 | Alerts, reports, subscriptions schema | 2026-07-28 | alerts + alert_configs (UNIQUE) + reports (UNIQUE) + subscriptions (UNIQUE). DECIMAL(7,4) percentages. Migration 0005_ordinary_the_spike.sql. DB apply pending CI. |
 | 3.7 | Intelligence engine schema | 2026-07-28 | intelligence_runs + findings (CHECK headline<=120) + action_drafts + cash_flow_projections. Migration 0006_narrow_mordo.sql. DB apply pending CI. |
 | 3.8 | Compliance and P2 schema | 2026-07-28 | consent_log (inet, no org FK) + firm_clients (firm_not_own_client CHECK). All 21 tables. Migration 0007_tiny_pixie.sql. DB apply pending CI. commit dfddb51 |
+| 3.9 | RLS policies and isolation function | 2026-07-28 | rls-policies.sql: get_accessible/writable_org_ids() SECURITY DEFINER, 21 ENABLE RLS, 80 CREATE POLICY. consent_log append-only. Apply via Supabase SQL Editor per SETUP.md §3. DB verify pending CI. commit a0bbf3c |
+| 3.10 | Seed data | 2026-07-28 | scripts/seed.ts: Demo Corp, 4 alert_configs, 4 accounts, 636 tx, 7 snapshots. All upserts via onConflictDoUpdate. SQL arithmetic only. Live run pending CI. commit 21d1503 |
 
 ---
 
