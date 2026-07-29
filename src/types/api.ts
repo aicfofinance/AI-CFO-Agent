@@ -9,6 +9,28 @@
  * This type describes the payload nested under the standard `{ data: T }`
  * success envelope, not the envelope itself.
  */
+/**
+ * Response body of `GET /api/auth/me`.
+ *
+ * Combines the per-request org context (`getRequestContext()`) with the two
+ * mutable profile fields owned by `PATCH /api/auth/me` — `displayName` (backed
+ * by `organizations.name`) and `timezone` — so a PATCH is observable via a
+ * subsequent GET. `queriesUsed` / `queriesLimit` are integer counts, not money.
+ *
+ * This type describes the payload nested under the standard `{ data: T }`
+ * success envelope, not the envelope itself.
+ */
+export type AuthMeResponse = {
+  userId: string;
+  orgId: string;
+  role: string;
+  planTier: string;
+  queriesUsed: number;
+  queriesLimit: number;
+  displayName: string;
+  timezone: string;
+};
+
 export type FinancialSummaryResponse = {
   currentMonth: {
     revenue: string;
