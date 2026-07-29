@@ -4,14 +4,10 @@ import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { detectRateLimitError, getModel } from "@/lib/ai/models/router";
 import { getCashPosition } from "@/lib/financial/calculations/cash-flow";
 import { db } from "@/lib/platform/db/client";
-import {
-  cashFlowProjections,
-  findings,
-  intelligenceRuns,
-  transactions,
-} from "@/lib/platform/db/schema";
+import { cashFlowProjections, intelligenceRuns, transactions } from "@/lib/platform/db/schema";
 
 import { buildArAgingSchedule } from "./ar-aging";
+import { insertFindingDeduped } from "./findings-writer";
 
 /**
  * A vendor charge that repeats on a stable monthly-ish cycle with a stable
@@ -584,7 +580,7 @@ export async function generateCashFlowRiskFinding(
       maxTokens: 220,
     });
 
-    await db.insert(findings).values({
+    await insertFindingDeduped({
       orgId,
       intelligenceRunId,
       findingType: "cash_flow_risk",

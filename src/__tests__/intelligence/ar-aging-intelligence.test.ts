@@ -39,6 +39,12 @@ vi.mock("ai", () => ({
 
 vi.mock("@/lib/platform/db/client", () => ({
   db: {
+    // Step 6.7: findings are written via `insertFindingDeduped`, which first runs
+    // a same-day dedup SELECT. Resolve it to an empty array so no duplicate is
+    // detected and the insert proceeds (the path these tests assert on).
+    select: () => ({
+      from: () => ({ where: () => ({ limit: () => Promise.resolve([]) }) }),
+    }),
     insert: () => ({ values: mocks.insertValues }),
     update: () => ({ set: mocks.updateSet }),
   },

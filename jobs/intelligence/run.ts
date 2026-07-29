@@ -14,7 +14,13 @@ import { runAnomalyDetection, runMarginDetection } from "@/lib/financial/intelli
 import { runArAgingAnalysis } from "@/lib/financial/intelligence/ar-aging-intelligence";
 import { runDuplicateSubscriptionScan } from "@/lib/financial/intelligence/duplicates";
 import { db } from "@/lib/platform/db/client";
-import { intelligenceRuns, syncJobs, transactions } from "@/lib/platform/db/schema";
+import {
+  connections,
+  findings,
+  intelligenceRuns,
+  syncJobs,
+  transactions,
+} from "@/lib/platform/db/schema";
 import { inngest } from "@/lib/inngest";
 
 /**
@@ -225,6 +231,29 @@ export const intelligenceRun = inngest.createFunction(
       return;
     }
 
-    // Step 6.7 adds the `mark-completed` step here as its own `step.run()` call.
+    // ── Step 6.7: mark the run completed (isolated final step) ─────────────────
+    // All analysis steps have run without a rate-limit skip. Count the findings
+    // actually written for this run (deduplication in `insertFindingDeduped` means
+    // this can be fewer than the number of conditions detected — a same-day re-run
+    // writes nothing), stamp the run `completed` with that count, and record the
+    // connection's `last_intelligence_run_at`. Its own `step.run()`, consistent
+    // with the one-concern-per-step structure of the analysis steps above.
+    await step.run("mark-completed", async (): Promise<void> => {
+      const [countResult] = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
+        .from(findings)
+        .where(eq(findings.intelligenceRunId, runId));
+      const findingsGenerated = countResult?.count ?? 0;
+
+      await db
+        .update(intelligenceRuns)
+        .set({ status: "completed", findingsGenerated })
+        .where(eq(intelligenceRuns.id, runId));
+
+      await db
+        .update(connections)
+        .set({ lastIntelligenceRunAt: new Date() })
+        .where(eq(connections.orgId, orgId));
+    });
   },
 );

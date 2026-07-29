@@ -3,7 +3,9 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { detectRateLimitError, getModel } from "@/lib/ai/models/router";
 import { db } from "@/lib/platform/db/client";
-import { alertConfigs, findings, intelligenceRuns, transactions } from "@/lib/platform/db/schema";
+import { alertConfigs, intelligenceRuns, transactions } from "@/lib/platform/db/schema";
+
+import { insertFindingDeduped } from "./findings-writer";
 
 /**
  * Anomaly + margin intelligence analysis (Steps 6.3 and 6.4).
@@ -305,7 +307,7 @@ async function generateAndStoreFinding(input: {
       maxTokens: 220,
     });
 
-    await db.insert(findings).values({
+    await insertFindingDeduped({
       orgId: input.orgId,
       intelligenceRunId: input.intelligenceRunId,
       findingType: input.findingType,

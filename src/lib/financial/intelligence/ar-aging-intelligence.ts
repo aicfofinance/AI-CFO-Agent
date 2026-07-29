@@ -3,11 +3,12 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { detectRateLimitError, getModel } from "@/lib/ai/models/router";
 import { db } from "@/lib/platform/db/client";
-import { findings, intelligenceRuns, transactions } from "@/lib/platform/db/schema";
+import { intelligenceRuns, transactions } from "@/lib/platform/db/schema";
 
 import type { ArAgingBucket, ArAgingSchedule } from "./ar-aging";
 import { buildArAgingSchedule } from "./ar-aging";
 import type { IntelligenceStepResult } from "./anomaly";
+import { insertFindingDeduped } from "./findings-writer";
 
 /**
  * AR aging collections-opportunity analysis (Step 6.5).
@@ -194,7 +195,7 @@ export async function generateCollectionsOpportunityFinding(
       maxTokens: 220,
     });
 
-    await db.insert(findings).values({
+    await insertFindingDeduped({
       orgId,
       intelligenceRunId,
       findingType: "collections_opportunity",

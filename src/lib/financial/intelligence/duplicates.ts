@@ -3,9 +3,10 @@ import { and, eq, isNotNull, sql } from "drizzle-orm";
 
 import { detectRateLimitError, getModel } from "@/lib/ai/models/router";
 import { db } from "@/lib/platform/db/client";
-import { accounts, findings, intelligenceRuns, transactions } from "@/lib/platform/db/schema";
+import { accounts, intelligenceRuns, transactions } from "@/lib/platform/db/schema";
 
 import type { IntelligenceStepResult } from "./anomaly";
+import { insertFindingDeduped } from "./findings-writer";
 
 /**
  * Duplicate subscription scan (Step 6.6).
@@ -247,7 +248,7 @@ export async function generateDuplicateSubscriptionFinding(
       maxTokens: 220,
     });
 
-    await db.insert(findings).values({
+    await insertFindingDeduped({
       orgId,
       intelligenceRunId,
       findingType: "duplicate_subscription",
