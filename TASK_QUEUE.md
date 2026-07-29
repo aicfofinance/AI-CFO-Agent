@@ -23,8 +23,8 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Migration check screen + /ask empty state | 10.0, 11.2 | product-engineer | 2026-07-30 |
-| POST /api/conversations + quota.ts | 11.3-prereq | backend-engineer | 2026-07-30 |
+| Messages API + streaming rendering | 11.3 | ai-engine-engineer | 2026-07-30 |
+| Xero integration | 12.0 | integration-engineer | 2026-07-30 |
 
 ---
 
@@ -32,12 +32,12 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Messages API + streaming rendering (AI parts) | 11.3 | ai-engine-engineer | 11.3-prereq (backend), 11.1 ✓ |
+| Chat UI wiring (/ask streaming integration) | 11.3-ui | product-engineer | 11.3 (route) |
 | Refugee welcome page + CSV upload | 10.1 | product-engineer + integration-engineer | 10.0 |
 | Start fresh + connect screen update | 10.2 | product-engineer | 10.1 |
 | Data & Privacy settings + export endpoint | 10.5 | backend-engineer + product-engineer | 2.6 ✓ |
 | Conversation history and 12-month cleanup | 11.4 | backend-engineer + product-engineer | 11.3 |
-| Xero integration | 12.0 | integration-engineer | 4.0 ✓ |
+| Refugee welcome page + CSV upload | 10.1 | integration-engineer + product-engineer | 10.0 ✓ |
 
 ---
 
@@ -127,6 +127,16 @@
 | AgenticModal states 1–4 (confirm+loading+review+copy) | 9.3–9.5 | 2026-07-30 | Five-state modal. AI disclaimer visible in State 3. CTA "Copy to clipboard". Null recipientEmail: literal TO: placeholder in copy text. tsc+lint exit 0. 160/160. commit 679dc13 |
 | AgenticModal State 5 + action tracking | 9.6 | 2026-07-30 | PATCH approved on "Looks good->", PATCH copied on copy. router.refresh() on close from done removes actioned finding. Visual-only "Mark as sent" toggle. tsc+lint exit 0. 160/160. commit cf87dcb |
 | Wire all agentic CTAs | 9.7 | 2026-07-30 | "Take action" (done in 9.3). Accelerate: cashflow page fetches feed in parallel, passes collections_opportunity finding to panel. Button shows invoice count, opens AgenticModal. tsc+lint exit 0. 160/160. commit bbf35bb |
+| Login + register pages | 2.0 | 2026-07-30 | signInWithOtp → /check-email, source=bench data-sovereignty callout, emailRedirectTo propagates source. 213/213. commit c80d663 |
+| Auth callback route | 2.1 | 2026-07-30 | token_hash exchange, routing new/returning/fail. Live DoD blocked by Supabase SMTP. 213/213. commit 3dfb567 |
+| Next.js middleware | 2.2 | 2026-07-30 | @supabase/ssr, (dashboard)→/login?next=. 213/213. commit 3dfb567 |
+| Organization creation endpoint | 2.3 | 2026-07-30 | POST /api/organizations. db.transaction: organizations+members+consent+subscriptions. 213/213. commit 3dfb567 |
+| Org onboarding page | 2.5 | 2026-07-30 | 15-option industry, revenue band, consent checkbox. 213/213. commit c80d663 |
+| me/logout endpoints | 2.6 | 2026-07-30 | GET/PATCH/DELETE /api/auth/me + POST /api/auth/logout. 213/213. commit 3dfb567 |
+| AI provider verification | 11.0 | 2026-07-30 | scripts/test-ai-provider.ts. zod/v3 fixed by 11.3-prereq. 213/213. commit 34e6487 |
+| System prompt + guardrails + streaming handler | 11.1 | 2026-07-30 | buildSystemPrompt, checkGuardrails, handleFinancialQuery. 15 new tests. 213/213. commit 34e6487 |
+| Migration check screen + /ask empty state | 10.0, 11.2 | 2026-07-30 | Migration: 2 path cards, bench highlighting. /ask: 3 context states, ChatInput. 213/213. commit d3343ad |
+| POST /api/conversations + quota.ts | 11.3-prereq | 2026-07-30 | POST→201, checkAndIncrementQuota FOR UPDATE, zod →~3.25.76. 213/213. commit d66576b |
 | Login + register pages | 2.0 | 2026-07-30 | signInWithOtp → /check-email, source=bench data-sovereignty callout, emailRedirectTo propagates source. tsc+lint exit 0. 204/204. commit c80d663 |
 | Auth callback route | 2.1 | 2026-07-30 | token_hash+type exchange, routes: new→/onboarding/migration (+?source=bench), returning+conn→/dashboard, returning→/onboarding/connect, fail→/login?error=link_expired. Live DoD blocked by Supabase SMTP. 204/204. commit 3dfb567 |
 | Next.js middleware | 2.2 | 2026-07-30 | @supabase/ssr, getUser(), (dashboard)→/login?next=, /login+session→/dashboard. 204/204. commit 3dfb567 |
