@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Intelligence feed + dismiss endpoints | 6.10+6.11 | ai-engine-engineer | 2026-07-29 |
+| Intelligence engine integration test | 6.12 | ai-engine-engineer | 2026-07-29 |
 
 ---
 
@@ -100,6 +100,7 @@
 | Finding storage and run completion | 6.7 | 2026-07-29 | insertFindingDeduped: same-day dedup. mark-completed step: intelligence_runs.completed + connections.lastIntelligenceRunAt. 4 new tests. 107/107. tsc+lint exit 0. commit aade49c |
 | Intelligence email trigger | 6.8 | 2026-07-29 | intelligenceEmail Inngest fn. Resend via env.RESEND_API_KEY. Severity-gated (critical/high only). Prior-run dedup by severity. vitest.config.ts @/jobs alias added. 15 new tests. 122/122. tsc+lint exit 0. commit 97a085e |
 | Intelligence fan-out wiring | 6.9 | 2026-07-29 | intelligenceFanOut cron 0 6 * * *. selectDistinct orgIds, dispatches intelligence/run.requested per org. All 5 intelligence fns registered in serve handler. 122/122. tsc+lint exit 0. commit a5792ba |
+| Intelligence feed + dismiss endpoints | 6.10+6.11 | 2026-07-29 | GET /api/intelligence/feed: cursor-paginated, severity-sorted, bySeverity counts, hasActionableType. POST /findings/:id/dismiss: 409 on re-dismiss. 14 new tests. 136/136. tsc+lint exit 0. commit 9d89f84 |
 
 ---
 
