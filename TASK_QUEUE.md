@@ -2,8 +2,8 @@
 ## AI CFO Agent
 
 **Last updated:** 2026-07-29  
-**Current phase:** Phase 6 — Proactive Intelligence Engine  
-**Active agents:** 1 (ai-engine-engineer on 6.2)  
+**Current phase:** Phase 8 — Intelligence Feed Dashboard  
+**Active agents:** 1 (product-engineer on 8.0)  
 
 ---
 
@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| shadcn/ui + base components (7.1–7.6) | 7.1–7.6 | product-engineer | 2026-07-29 |
+| Intelligence Feed page layout + data fetching | 8.0 | product-engineer | 2026-07-29 |
 
 ---
 
@@ -31,6 +31,8 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
+| Finding card component | 8.1 | product-engineer | 8.0, 7.3 |
+| Cash Flow Timeline page and visualization | 8.4 | product-engineer | 5.7, 7.2 |
 
 ---
 
@@ -103,12 +105,30 @@
 | Intelligence feed + dismiss endpoints | 6.10+6.11 | 2026-07-29 | GET /api/intelligence/feed: cursor-paginated, severity-sorted, bySeverity counts, hasActionableType. POST /findings/:id/dismiss: 409 on re-dismiss. 14 new tests. 136/136. tsc+lint exit 0. commit 9d89f84 |
 | Intelligence engine integration test | 6.12 | 2026-07-29 | full-run.test.ts: expense spike→anomaly, overdue invoice→collections_opportunity (invoiceId in relatedData), duplicate vendor→duplicate_subscription. 6 tests, 9ms. 142/142. tsc+lint exit 0. commit 3afbe87 |
 | Tailwind v4 + CSS design tokens | 7.0 | 2026-07-29 | src/styles/globals.css: 40+ CSS vars, @theme Tailwind tokens, .font-numeric, focus rings. Inter+IBM Plex Mono fonts. layout.tsx updated. system.ts placeholder added. 142/142. tsc+lint exit 0. commit 040b7dc |
+| shadcn/ui + base components | 7.1–7.6 | 2026-07-29 | shadcn/ui init, 9 primitives, sonner, (dashboard) layout+AppNav (Intelligence first), SeverityBadge, CurrencyAmount, MetricChange, 3 skeletons, FinancialTable (rounded-none), AlertBadge, DataTimestamp. tsc+lint exit 0. 142/142 tests. commit cdefe5a |
 
 ---
 
 ## Orchestrator Notes
 
 *This section is the persistent context layer between sessions. Update it whenever a session ends mid-task, a decision is made that affects agent assignments, or a dependency chain changes.*
+
+---
+
+### Session 6 — 2026-07-29
+
+**Completed:** Phase 7 complete (7.1–7.6). Phase 8 starting.
+
+**Key notes:**
+- 7.1–7.6 delegated as single batch to product-engineer. All DoD items met except browser visual verification (pending).
+- shadcn init uses `-d` flag for non-interactive run; button.tsx default variant overridden to `bg-primary-500` (`#2557A7`).
+- AppNav has Intelligence as first item; AlertBadge wired with count=0 placeholder; DataTimestamp turns amber >12h stale.
+- FinancialTable has `rounded-none overflow-hidden` container, 44px rows, em-dash for null, right-aligned numeric cols.
+- AIResponseSkeleton renders `border-l-4 border-l-[#B3D3FF]` (primary-200) immediately before content.
+
+**In progress:** Step 8.0 (Intelligence Feed page layout + data fetching) → product-engineer.
+
+**Next:** 8.0 → 8.1 (FindingCard) → 8.2 (healthy/insufficient-data states) → 8.3 (dismiss UI). 8.4 (CashFlow chart) can run in parallel with 8.1.
 
 ---
 
