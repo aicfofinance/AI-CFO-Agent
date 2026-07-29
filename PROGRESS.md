@@ -17,13 +17,13 @@
 
 ## Current Phase
 
-**Phase 7: Core Frontend — Layout and Design System** — starting (Phase 6 complete)
+**Phase 14: Polish** — in progress (14.0 complete; 14.1 + 14.2 in progress)
 
 ---
 
 ## Current Step
 
-**Step 7.0** — Tailwind v4 + CSS design tokens (starting)
+**Steps 14.1 + 14.2** — Notification preferences, auth_expired amber banner, 14-day medium suppression, terms/privacy pages (four parallel agents)
 
 **Active Decision — Step 2.4 expedited:** Step 2.4 (`getRequestContext`) was implemented before Step 4.2 even though 2.0/2.1 are blocked (Supabase SMTP external action). The code and unit tests are complete; live auth verification awaits 2.0. All Phase 4 API endpoints depend on `getRequestContext()` so this unblocks the entire integration layer.
 
@@ -33,21 +33,21 @@
 
 | Phase | Title | Steps | Status |
 |---|---|---|---|
-| 1 | Foundation | 1.0–1.7 | 🔄 In progress (1.0, 1.1, 1.2, 1.3, 1.4, 1.7 done; 1.5/1.6 blocked: external) |
-| 2 | Authentication & Multi-tenancy | 2.0–2.6 | 🔲 Not started |
+| 1 | Foundation | 1.0–1.7 | 🔄 In progress (1.0–1.4, 1.7 done; 1.5 code complete; 1.6 blocked: GitHub push) |
+| 2 | Authentication & Multi-tenancy | 2.0–2.6 | 🔄 Code complete; live auth DoD blocked by Supabase SMTP external action |
 | 3 | Database Schema | 3.0–3.10 | ✅ Complete |
 | 4 | QuickBooks Integration | 4.0–4.10 | ✅ Complete |
 | 5 | Financial Data Layer + Cash Flow Projection | 5.0–5.9 | ✅ Complete |
 | 6 | Proactive Intelligence Engine | 6.0–6.12 | ✅ Complete |
-| 7 | Core Frontend — Layout + Design System | 7.0–7.6 | 🔄 In progress |
-| 8 | Intelligence Feed Dashboard | 8.0–8.6 | 🔲 Not started |
-| 9 | Agentic Execution Layer | 9.0–9.7 | 🔲 Not started |
-| 10 | Bench Refugee Onboarding | 10.0–10.4 | 🔲 Not started |
-| 11 | Reactive Q&A Interface | 11.0–11.4 | 🔲 Not started |
-| 12 | Xero Integration | 12.0–12.1 | 🔲 Not started |
-| 13 | Reports + Billing | 13.0–13.2 | 🔲 Not started |
-| 14 | Polish | 14.0–14.2 | 🔲 Not started |
-| 15 | Pre-Launch | 15.0–15.5 | 🔲 Not started |
+| 7 | Core Frontend — Layout + Design System | 7.0–7.6 | ✅ Complete |
+| 8 | Intelligence Feed Dashboard | 8.0–8.6 | ✅ Complete |
+| 9 | Agentic Execution Layer | 9.0–9.7 | ✅ Complete |
+| 10 | Bench Refugee Onboarding | 10.0–10.5 | ✅ Complete |
+| 11 | Reactive Q&A Interface | 11.0–11.4 | ✅ Complete |
+| 12 | Xero Integration | 12.0–12.1 | ✅ Complete |
+| 13 | Reports + Billing | 13.0–13.2 | 🔲 Blocked: Stripe credentials not obtained |
+| 14 | Polish | 14.0–14.2 | 🔄 In progress (14.0 ✅; 14.1+14.2 in progress) |
+| 15 | Pre-Launch | 15.0–15.5 | 🔄 In progress (15.1 ✅; 15.2+15.3 available; 15.4/15.5 blocked) |
 
 ---
 

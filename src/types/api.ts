@@ -139,6 +139,29 @@ export type FindingArchiveResponse = {
   meta: { total: number; nextCursor: string | null };
 };
 
+/**
+ * One notification-preference row as returned by `GET /api/alert-configs` and
+ * `PATCH /api/alert-configs/:alertType`. `alertType` is narrowed to the four
+ * finding types the notification settings page exposes. `thresholdValue` is
+ * intentionally omitted — it is not user-configurable in V1 (Step 14.1). Both
+ * booleans are plain flags, not monetary values.
+ */
+export type AlertConfigItem = {
+  alertType: "cash_flow_risk" | "anomaly" | "collections_opportunity" | "duplicate_subscription";
+  isEnabled: boolean;
+  emailNotifications: boolean;
+};
+
+/**
+ * Response body of `GET /api/alert-configs`. Always contains exactly four items
+ * (one per finding type, in a fixed order); missing rows for an org created
+ * before configs were seeded are backfilled with defaults. Nested under the
+ * standard `{ data: T }` success envelope.
+ */
+export type AlertConfigsResponse = {
+  data: AlertConfigItem[];
+};
+
 export type FinancialSummaryResponse = {
   currentMonth: {
     revenue: string;

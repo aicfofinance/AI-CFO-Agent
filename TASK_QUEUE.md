@@ -2,8 +2,8 @@
 ## AI CFO Agent
 
 **Last updated:** 2026-07-30  
-**Current phase:** Phase 10 (onboarding) — steps 10.2 + 10.5-ui in progress  
-**Active agents:** 2  
+**Current phase:** Phase 14 (Polish) — steps 14.1 + 14.2 in progress  
+**Active agents:** 4  
 
 ---
 
@@ -23,9 +23,10 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Alerts archive page + findings endpoint | 14.0-api | backend-engineer | 2026-07-30 |
-| Alerts archive UI | 14.0-ui | product-engineer | 2026-07-30 |
-| Token encryption + API auth audit | 15.1 | backend-engineer | 2026-07-30 |
+| Notification prefs API (alert-configs + auth_expired intelligence guard) | 14.1-api | backend-engineer | 2026-07-30 |
+| Notification prefs UI + amber auth-expired banner | 14.1-ui | product-engineer | 2026-07-30 |
+| 14-day suppression logic + terms/privacy pages (backend) | 14.2-api | backend-engineer | 2026-07-30 |
+| Terms + privacy pages UI | 14.2-ui | product-engineer | 2026-07-30 |
 
 ---
 
@@ -33,7 +34,8 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| *(none — 10.4 unblocks after 10.3 completes)* | | | |
+| Intelligence accuracy benchmark script | 15.2 | backend-engineer | 6.12 ✓ |
+| Vercel timeout compliance + performance benchmark | 15.3 | ai-engine-engineer + backend-engineer | 6.9 ✓ |
 
 ---
 
@@ -43,9 +45,8 @@
 |------|--------|------------|
 | GitHub Actions CI pipeline | 1.6 | All code deps met. Needs push to GitHub — git push blocked by Claude Code auto-classifier. User must run `git push origin main` or authorize push in settings. |
 | Live auth DoD verification | 2.0–2.6 | External action: Supabase Dashboard → Auth → SMTP → smtp.resend.com:465, username=resend, password=RESEND_API_KEY. Set Site URL=http://localhost:3000, add /api/auth/callback to redirect allowlist. Code is written. |
-| Notification preferences + token expiry banner | 14.1 | backend-engineer + product-engineer | 14.0 (7.7 → treat as 7.6 ✓) |
-| 14-day suppression + terms/privacy pages | 14.2 | backend-engineer + product-engineer | 8.0 ✓ |
-| Billing / Stripe integration | 13.x | Stripe credentials not obtained |
+| Disclaimer audit + production deployment | 15.4 | 15.3 (must verify timing first) + External actions: create Vercel project, production Supabase, set prod env vars |
+| Production smoke test | 15.5 | 15.4 ✗ |
 | Billing / Stripe integration | 13.x | Stripe credentials not obtained |
 
 > **External actions required before un-blocking:** Steps 1.5 and 1.6 require real-world setup outside the codebase (creating a Supabase project, pushing to GitHub). See the **Integration Credentials Status** section of PROGRESS.md for the full list of credentials to obtain. Until these accounts exist, these steps cannot complete their Definition of Done even if the code is written.
@@ -154,12 +155,37 @@
 | Onboarding sync waiting page | 10.3 | 2026-07-30 | onboarding/sync/page.tsx: two-phase polling (phase1: syncStatus=success, phase2: lastIntelligenceRunAt!=null), 90s timeout, Retry/Continue, dynamic text 4 messages. 271/271. tsc+lint exit 0. commit 9dec1f6 |
 | First intelligence brief screen | 10.4 | 2026-07-30 | onboarding/first-brief/page.tsx: server component, FindingCard list or IntelligenceFeedHealthy, data sovereignty banner, CTAs →/dashboard and →/cashflow. Phase 10 complete. 271/271. tsc+lint exit 0. commit 1e8ee3b |
 | Data & Privacy settings UI | 10.5-ui | 2026-07-30 | settings/account/page.tsx: Account section (auth/me), Data & Privacy section, Download your data button (blob URL), 429 surfaced verbatim. 271/271. tsc+lint exit 0. commit 335a71f |
+| Alerts archive endpoint | 14.0-api | 2026-07-30 | GET /api/intelligence/findings: cursor-paginated archive, status/severity/type/date filters, status=active reproduces feed expiry filter, status=all omits it. FindingArchiveItem type in api.ts. 291/291 tests. tsc+lint exit 0. commit 9842463 |
+| Alerts archive UI page | 14.0-ui | 2026-07-30 | /alerts: client-side filter bar (status/severity/type), cursor load-more, dimmed dismissed+actioned cards, configure-alerts link, empty state. 307/307 tests. tsc+lint exit 0. commit 9842463 |
+| Token encryption + API auth security tests | 15.1 | 2026-07-30 | token-encryption.test.ts (10 tests: round-trip, IV uniqueness, tamper detection, no plaintext). api-auth.test.ts (16 tests: all 14 session-gated endpoints 401, including all 5 V2 endpoints). 307/307 tests. tsc+lint exit 0. commit 9842463 |
 
 ---
 
 ## Orchestrator Notes
 
 *This section is the persistent context layer between sessions. Update it whenever a session ends mid-task, a decision is made that affects agent assignments, or a dependency chain changes.*
+
+---
+
+### Session 11 — 2026-07-30
+
+**Completed this session:** 14.0-api + 14.0-ui + 15.1 (all committed in 9842463). 307 tests passing. tsc+lint clean.
+
+**Current batch:** 14.1-api (backend-engineer), 14.1-runner+14.2-feed (ai-engine-engineer), 14.1-ui (product-engineer), 14.2-ui (product-engineer) — all running in parallel.
+
+**Key design decisions for this session:**
+- 14.1 split into 3 sub-tasks across 3 agents: backend-engineer owns alert-configs API, ai-engine-engineer gates intelligence runner on configs, product-engineer does notifications page + amber banner
+- 14.2 split: ai-engine-engineer modifies feed endpoint for 14-day medium suppression (adds `meta.mediumFindingsSuppressed: boolean`), product-engineer creates terms/privacy pages
+- alertConfigMap['anomaly'] = false skips runAnomalyDetection (DoD: "expense spike alert off → no expense spike findings")
+- alertConfigMap['cash_flow_risk'] = false skips cash flow projection + risk finding steps
+- alertConfigMap['collections_opportunity'] = false skips AR aging analysis step
+- alertConfigMap['duplicate_subscription'] = false skips duplicate subscription scan step
+- margin_alert has no alert_config entry — `margin-detection` step always runs
+- Amber banner: fetched server-side in DashboardLayout, non-dismissible, links to /settings/connections
+
+**15.2 and 15.3 are Available** after this batch completes. 15.4 requires external action (Vercel deployment).
+
+**Next after this batch:** 15.2 (intelligence accuracy benchmark script — backend-engineer) and 15.3 (timing + performance benchmarks — ai-engine-engineer + backend-engineer).
 
 ---
 

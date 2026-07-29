@@ -39,7 +39,22 @@ type FindingFeedMeta = {
   bySeverity: { critical: number; high: number; medium: number; low: number };
   nextCursor: string | null;
   total: number;
+  /**
+   * True when at least one `medium` finding was suppressed from the feed for
+   * being older than 14 days (Step 14.2). The UI uses this to show the one-time
+   * "medium findings moved to Alerts archive" prompt. Critical/high findings are
+   * never suppressed.
+   */
+  mediumFindingsSuppressed: boolean;
 };
+
+/**
+ * Age past which `medium`-severity findings are suppressed from the live feed
+ * (Step 14.2). After 14 days of inaction a medium finding drops out of the feed
+ * (it remains in the Alerts archive) so the feed reflects still-relevant items.
+ * Critical/high findings are never suppressed by age.
+ */
+const MEDIUM_SUPPRESSION_DAYS = 14;
 
 /** Opaque cursor payload — the sort key of the last item on the previous page. */
 type FeedCursor = {
@@ -130,13 +145,22 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     const cursor = decodeCursor(new URL(request.url).searchParams.get("cursor"));
 
+    // Medium findings older than this instant are suppressed from the feed (Step
+    // 14.2). Computed once so the page/count filter and the suppression-detection
+    // query use the same cutoff.
+    const suppressionCutoff = new Date(Date.now() - MEDIUM_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000);
+
     // Both conditions are ALWAYS applied together (CLAUDE.md): active status and
     // the non-expired window. A `cash_flow_risk` finding past its risk date is no
     // longer actionable and must not appear even though its status is 'active'.
+    // The final predicate suppresses `medium` findings older than 14 days (Step
+    // 14.2) — critical/high are never age-suppressed.
     const activeFilter = and(
       eq(findings.orgId, orgId),
       eq(findings.status, "active"),
       sql`(${findings.expiresAt} IS NULL OR ${findings.expiresAt} > now())`,
+      // Exclude medium findings older than 14 days.
+      sql`NOT (${findings.severity} = 'medium' AND ${findings.createdAt} <= ${suppressionCutoff})`,
     );
 
     // Feed-style cursor: advance strictly past the last item's (created_at, id).
@@ -206,7 +230,25 @@ export async function GET(request: Request): Promise<NextResponse> {
     const bySeverity = severityCount(countRows);
     const total = bySeverity.critical + bySeverity.high + bySeverity.medium + bySeverity.low;
 
-    const meta: FindingFeedMeta = { bySeverity, nextCursor, total };
+    // Detect whether any active, non-expired medium finding was suppressed by the
+    // 14-day age cutoff (Step 14.2). This mirrors `activeFilter` but inverts the
+    // medium/age predicate to count exactly the population excluded above, so the
+    // UI can show the one-time "moved to Alerts archive" prompt.
+    const [suppressedMediumRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(findings)
+      .where(
+        and(
+          eq(findings.orgId, orgId),
+          eq(findings.status, "active"),
+          eq(findings.severity, "medium"),
+          sql`(${findings.expiresAt} IS NULL OR ${findings.expiresAt} > now())`,
+          sql`${findings.createdAt} <= ${suppressionCutoff}`,
+        ),
+      );
+    const mediumFindingsSuppressed = (suppressedMediumRow?.count ?? 0) > 0;
+
+    const meta: FindingFeedMeta = { bySeverity, nextCursor, total, mediumFindingsSuppressed };
 
     return NextResponse.json({ data, meta }, { status: 200 });
   } catch (error) {

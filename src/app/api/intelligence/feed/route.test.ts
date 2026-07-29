@@ -47,6 +47,7 @@ const mocks = vi.hoisted(() => {
     getRequestContext: vi.fn(),
     pageRows: vi.fn<() => FindingRow[]>(() => []),
     countRows: vi.fn<() => Array<{ severity: string; count: number }>>(() => []),
+    suppressedMediumRows: vi.fn<() => Array<{ count: number }>>(() => [{ count: 0 }]),
     whereArg: vi.fn<(predicate: unknown) => void>(),
     orderByArg: vi.fn<(...args: unknown[]) => void>(),
   };
@@ -57,22 +58,39 @@ vi.mock("@/lib/platform/auth/session", () => ({
   RequestContextError: mocks.RequestContextError,
 }));
 
+// Each GET runs three sequential `db.select()` chains, always in this order:
+// (1) the page query (from → where → orderBy → limit), (2) the severity count
+// query (from → where → groupBy), and (3) the 14-day medium-suppression
+// detection query (from → where, awaited directly). `selectCallCount` increments
+// across the whole test file (reset in `beforeEach`); the suppression query is
+// therefore every third call, matched with `callNum % 3 === 0` so a test that
+// invokes GET more than once still routes each GET's third query correctly.
+let selectCallCount = 0;
+
 vi.mock("@/lib/platform/db/client", () => ({
   db: {
-    select: () => ({
-      from: () => ({
-        where: (predicate: unknown) => {
-          mocks.whereArg(predicate);
-          return {
-            orderBy: (...args: unknown[]) => {
-              mocks.orderByArg(...args);
-              return { limit: () => Promise.resolve(mocks.pageRows()) };
-            },
-            groupBy: () => Promise.resolve(mocks.countRows()),
-          };
-        },
-      }),
-    }),
+    select: () => {
+      selectCallCount++;
+      const callNum = selectCallCount;
+      return {
+        from: () => ({
+          where: (predicate: unknown) => {
+            mocks.whereArg(predicate);
+            if (callNum % 3 === 0) {
+              // Suppression-detection query resolves directly from `.where()`.
+              return Promise.resolve(mocks.suppressedMediumRows());
+            }
+            return {
+              orderBy: (...args: unknown[]) => {
+                mocks.orderByArg(...args);
+                return { limit: () => Promise.resolve(mocks.pageRows()) };
+              },
+              groupBy: () => Promise.resolve(mocks.countRows()),
+            };
+          },
+        }),
+      };
+    },
   },
 }));
 
@@ -101,9 +119,11 @@ function feedRequest(cursor?: string): Request {
 describe("GET /api/intelligence/feed", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    selectCallCount = 0;
     mocks.getRequestContext.mockResolvedValue({ orgId: mocks.ORG_ID, userId: mocks.USER_ID });
     mocks.pageRows.mockReturnValue([]);
     mocks.countRows.mockReturnValue([]);
+    mocks.suppressedMediumRows.mockReturnValue([{ count: 0 }]);
   });
 
   it("returns active findings in the DB (critical-first) order with an order-by applied", async () => {
@@ -128,10 +148,11 @@ describe("GET /api/intelligence/feed", () => {
     expect(mocks.orderByArg).toHaveBeenCalled();
   });
 
-  it("applies a WHERE filter (active + non-expired) to both the page and count queries", async () => {
+  it("applies a WHERE filter (active + non-expired) to the page, count, and suppression queries", async () => {
     await GET(feedRequest());
-    // Two queries run: the page query and the count query — both filtered.
-    expect(mocks.whereArg).toHaveBeenCalledTimes(2);
+    // Three queries run: the page query, the count query, and the medium
+    // suppression-detection query — all filtered.
+    expect(mocks.whereArg).toHaveBeenCalledTimes(3);
     expect(mocks.whereArg.mock.calls.every(([predicate]) => predicate !== undefined)).toBe(true);
   });
 
@@ -144,6 +165,27 @@ describe("GET /api/intelligence/feed", () => {
     expect(body.meta.bySeverity).toEqual({ critical: 0, high: 0, medium: 0, low: 0 });
     expect(body.meta.total).toBe(0);
     expect(body.meta.nextCursor).toBeNull();
+    expect(body.meta.mediumFindingsSuppressed).toBe(false);
+  });
+
+  it("returns mediumFindingsSuppressed=false when no old medium findings exist", async () => {
+    mocks.suppressedMediumRows.mockReturnValue([{ count: 0 }]);
+
+    const res = await GET(feedRequest());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.meta.mediumFindingsSuppressed).toBe(false);
+  });
+
+  it("returns mediumFindingsSuppressed=true when the suppression query has count>0", async () => {
+    mocks.suppressedMediumRows.mockReturnValue([{ count: 2 }]);
+
+    const res = await GET(feedRequest());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.meta.mediumFindingsSuppressed).toBe(true);
   });
 
   it("computes bySeverity counts and total from the count query", async () => {

@@ -17,6 +17,7 @@ import type { EmailDispatchDecision } from "@/jobs/intelligence/email";
 import { computeEmailDispatch } from "@/jobs/intelligence/email";
 import { db } from "@/lib/platform/db/client";
 import {
+  alertConfigs,
   connections,
   findings,
   intelligenceRuns,
@@ -150,6 +151,32 @@ export const intelligenceRun = inngest.createFunction(
       return;
     }
 
+    // ── Step 14.1: load per-org alert-config gating (isolated step) ────────────
+    // Each analysis type maps to an `alert_configs.alert_type` toggle; when a toggle
+    // is disabled the corresponding analysis step is skipped entirely so the org
+    // generates no findings of that type. This is its own `step.run()` — never
+    // combined with `check-guards` (CLAUDE.md, Intelligence Engine Rules: one
+    // concern per step). A type absent from `alert_configs` defaults to enabled, so
+    // the map only ever carries the org's explicit toggles; the gates below treat
+    // anything other than an explicit `false` as enabled. `margin_alert` has no
+    // config row and is intentionally not represented here — margin detection always
+    // runs.
+    const alertConfigMap = await step.run(
+      "load-alert-configs",
+      async (): Promise<Record<string, boolean>> => {
+        const rows = await db
+          .select({ alertType: alertConfigs.alertType, isEnabled: alertConfigs.isEnabled })
+          .from(alertConfigs)
+          .where(eq(alertConfigs.orgId, orgId));
+
+        const cfg: Record<string, boolean> = {};
+        for (const rowItem of rows) {
+          cfg[rowItem.alertType] = rowItem.isEnabled;
+        }
+        return cfg;
+      },
+    );
+
     // ── Step 6.2: cash flow projection (isolated analysis step) ────────────────
     // Its own `step.run()` — never combined with anomaly, margin, AR-aging, or
     // duplicate analysis (CLAUDE.md, Intelligence Engine Rules). Building and
@@ -157,30 +184,35 @@ export const intelligenceRun = inngest.createFunction(
     // completes well under the 8-second Vercel Hobby budget in isolation. The
     // projection is returned so the finding decision below runs against it; its
     // fields are all strings/arrays and survive Inngest's JSON memoization.
-    const projection = await step.run(
-      "cash-flow-projection",
-      async (): Promise<CashFlowProjection> => {
-        const proj = await buildCashFlowProjection(orgId, 30);
-        await storeCashFlowProjection(orgId, proj);
-        return proj;
-      },
-    );
-
-    // A `cash_flow_risk` finding is warranted only when the projected minimum
-    // balance breaches the buffer threshold (projected to go negative in-window).
-    if (isCashFlowRisk(projection)) {
-      const findingResult = await step.run(
-        "cash-flow-risk-finding",
-        (): Promise<CashFlowRiskFindingResult> =>
-          generateCashFlowRiskFinding(orgId, runId, projection),
+    //
+    // Gated by the `cash_flow_risk` toggle (Step 14.1): when disabled, both the
+    // projection and its risk-finding step are skipped.
+    if (alertConfigMap["cash_flow_risk"] !== false) {
+      const projection = await step.run(
+        "cash-flow-projection",
+        async (): Promise<CashFlowProjection> => {
+          const proj = await buildCashFlowProjection(orgId, 30);
+          await storeCashFlowProjection(orgId, proj);
+          return proj;
+        },
       );
 
-      // Rate-limit skip: the AI provider returned 429. `generateCashFlowRiskFinding`
-      // has already marked the run `status = 'skipped'`, `skipped_reason =
-      // 'rate_limit'`. Return cleanly — never throw (Inngest would retry an
-      // unchanged condition) and never fail over to another provider (CLAUDE.md).
-      if (findingResult.status === "skipped") {
-        return;
+      // A `cash_flow_risk` finding is warranted only when the projected minimum
+      // balance breaches the buffer threshold (projected to go negative in-window).
+      if (isCashFlowRisk(projection)) {
+        const findingResult = await step.run(
+          "cash-flow-risk-finding",
+          (): Promise<CashFlowRiskFindingResult> =>
+            generateCashFlowRiskFinding(orgId, runId, projection),
+        );
+
+        // Rate-limit skip: the AI provider returned 429. `generateCashFlowRiskFinding`
+        // has already marked the run `status = 'skipped'`, `skipped_reason =
+        // 'rate_limit'`. Return cleanly — never throw (Inngest would retry an
+        // unchanged condition) and never fail over to another provider (CLAUDE.md).
+        if (findingResult.status === "skipped") {
+          return;
+        }
       }
     }
 
@@ -191,11 +223,16 @@ export const intelligenceRun = inngest.createFunction(
     // 429 the run has already been marked `status = 'skipped'`, `skipped_reason =
     // 'rate_limit'` inside `runAnomalyDetection`; return cleanly — never throw, never
     // fail over to another provider.
-    const anomalyResult = await step.run("anomaly-detection", () =>
-      runAnomalyDetection(orgId, runId),
-    );
-    if (anomalyResult.status === "skipped") {
-      return;
+    //
+    // Gated by the `anomaly` toggle (Step 14.1): disabling it means the next run
+    // generates no expense-spike findings.
+    if (alertConfigMap["anomaly"] !== false) {
+      const anomalyResult = await step.run("anomaly-detection", () =>
+        runAnomalyDetection(orgId, runId),
+      );
+      if (anomalyResult.status === "skipped") {
+        return;
+      }
     }
 
     // ── Step 6.4: margin deterioration detection (isolated analysis step) ──────
@@ -214,11 +251,15 @@ export const intelligenceRun = inngest.createFunction(
     // agentic layer uses to pre-populate an invoice-acceleration draft. Its own
     // `step.run()` — never combined with anomaly, margin, or duplicate analysis
     // (CLAUDE.md). Same 429 skip contract as above.
-    const arAgingResult = await step.run("ar-aging-analysis", () =>
-      runArAgingAnalysis(orgId, runId),
-    );
-    if (arAgingResult.status === "skipped") {
-      return;
+    //
+    // Gated by the `collections_opportunity` toggle (Step 14.1).
+    if (alertConfigMap["collections_opportunity"] !== false) {
+      const arAgingResult = await step.run("ar-aging-analysis", () =>
+        runArAgingAnalysis(orgId, runId),
+      );
+      if (arAgingResult.status === "skipped") {
+        return;
+      }
     }
 
     // ── Step 6.6: duplicate subscription scan (isolated step) ──────────────────
@@ -226,11 +267,15 @@ export const intelligenceRun = inngest.createFunction(
     // within 10% in the recent billing window → a `duplicate_subscription`
     // finding. Separate `step.run()`, never combined with AR aging (CLAUDE.md).
     // Same 429 skip contract as above.
-    const duplicatesResult = await step.run("duplicate-subscription-scan", () =>
-      runDuplicateSubscriptionScan(orgId, runId),
-    );
-    if (duplicatesResult.status === "skipped") {
-      return;
+    //
+    // Gated by the `duplicate_subscription` toggle (Step 14.1).
+    if (alertConfigMap["duplicate_subscription"] !== false) {
+      const duplicatesResult = await step.run("duplicate-subscription-scan", () =>
+        runDuplicateSubscriptionScan(orgId, runId),
+      );
+      if (duplicatesResult.status === "skipped") {
+        return;
+      }
     }
 
     // ── Step 6.7: mark the run completed (isolated final step) ─────────────────
