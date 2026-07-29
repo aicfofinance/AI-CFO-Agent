@@ -103,6 +103,20 @@
 
 ---
 
+### Session 5 — 2026-07-29
+
+**Completed:** Phases 4+5 complete (4.6–4.10, 5.0–5.9, format.ts). Phase 6 in progress: 6.0, 6.1, 6.2 done.
+
+**Key notes:**
+- AI SDK packages (ai, @ai-sdk/anthropic, @ai-sdk/google) installed in 6.1
+- zod peer dep warning (zod-to-json-schema wants zod 3.25+, project is on 3.24.4) — non-fatal, tests mock the ai package to work around
+- format.ts expedited (normally Step 7.0) because 5.8 needed formatCurrency
+- Inngest serve handler updated at each step: now has syncFanOut, syncSingleOrg, intelligenceRun
+
+**In progress:** Step 6.3 (anomaly detection) → 6.4 (margin) → 6.5 (AR aging) → 6.6 (duplicates) → 6.7 (finding storage) → 6.8 (email) → 6.9 (fan-out wiring) → 6.10+6.11 (API endpoints) → 6.12 (integration test).
+
+**Resend:** credentials in .env.local but package not installed. Must `pnpm add resend` before step 6.8.
+
 ### Session 4 — 2026-07-29
 
 **Completed:** Steps 4.3, 4.4, 4.5, 4.6. Steps 4.2–4.6 all done.
