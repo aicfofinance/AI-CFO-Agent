@@ -23,7 +23,7 @@ import { buildSystemPrompt } from "@/lib/ai/prompts/system";
  */
 
 /** Canonical financial disclaimer — the mandated final chunk of every response. */
-const FINANCIAL_DISCLAIMER =
+export const FINANCIAL_DISCLAIMER =
   "This is AI-generated analysis of your accounting data. It is not financial " +
   "advice. Consult a qualified financial professional for decisions requiring " +
   "expert judgment.";
