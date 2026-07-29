@@ -1,5 +1,15 @@
 import { desc, eq, sql } from "drizzle-orm";
 
+import type {
+  CashFlowProjection,
+  CashFlowRiskFindingResult,
+} from "@/lib/financial/intelligence/cash-flow";
+import {
+  buildCashFlowProjection,
+  generateCashFlowRiskFinding,
+  isCashFlowRisk,
+  storeCashFlowProjection,
+} from "@/lib/financial/intelligence/cash-flow";
 import { db } from "@/lib/platform/db/client";
 import { intelligenceRuns, syncJobs, transactions } from "@/lib/platform/db/schema";
 import { inngest } from "@/lib/inngest";
@@ -129,7 +139,41 @@ export const intelligenceRun = inngest.createFunction(
       return;
     }
 
-    // Steps 6.2–6.7 add the isolated analysis steps here, each as its own
-    // `step.run()` call, followed by a `mark-completed` step.
+    // ── Step 6.2: cash flow projection (isolated analysis step) ────────────────
+    // Its own `step.run()` — never combined with anomaly, margin, AR-aging, or
+    // duplicate analysis (CLAUDE.md, Intelligence Engine Rules). Building and
+    // persisting a 30-day projection is deterministic arithmetic (no AI) and
+    // completes well under the 8-second Vercel Hobby budget in isolation. The
+    // projection is returned so the finding decision below runs against it; its
+    // fields are all strings/arrays and survive Inngest's JSON memoization.
+    const projection = await step.run(
+      "cash-flow-projection",
+      async (): Promise<CashFlowProjection> => {
+        const proj = await buildCashFlowProjection(orgId, 30);
+        await storeCashFlowProjection(orgId, proj);
+        return proj;
+      },
+    );
+
+    // A `cash_flow_risk` finding is warranted only when the projected minimum
+    // balance breaches the buffer threshold (projected to go negative in-window).
+    if (isCashFlowRisk(projection)) {
+      const findingResult = await step.run(
+        "cash-flow-risk-finding",
+        (): Promise<CashFlowRiskFindingResult> =>
+          generateCashFlowRiskFinding(orgId, runId, projection),
+      );
+
+      // Rate-limit skip: the AI provider returned 429. `generateCashFlowRiskFinding`
+      // has already marked the run `status = 'skipped'`, `skipped_reason =
+      // 'rate_limit'`. Return cleanly — never throw (Inngest would retry an
+      // unchanged condition) and never fail over to another provider (CLAUDE.md).
+      if (findingResult.status === "skipped") {
+        return;
+      }
+    }
+
+    // Steps 6.3–6.7 add the remaining isolated analysis steps here, each as its
+    // own `step.run()` call, followed by a `mark-completed` step.
   },
 );

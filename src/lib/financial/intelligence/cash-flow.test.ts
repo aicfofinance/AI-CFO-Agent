@@ -59,6 +59,20 @@ vi.mock("@/lib/financial/intelligence/ar-aging", () => ({
   buildArAgingSchedule: vi.fn(() => Promise.resolve(mocks.arSchedule)),
 }));
 
+// `cash-flow.ts` imports `generateText` from `ai` and the model router at module
+// top level for `generateCashFlowRiskFinding` (Step 6.2). Neither is exercised by
+// this suite (it tests the deterministic projection + recurring-expense paths), so
+// they are stubbed to keep the real `ai` package graph — which fails to resolve
+// under Vitest — out of this module's import chain.
+vi.mock("ai", () => ({
+  generateText: vi.fn(),
+}));
+
+vi.mock("@/lib/ai/models/router", () => ({
+  getModel: vi.fn(),
+  detectRateLimitError: vi.fn(() => false),
+}));
+
 const MS_PER_DAY = 86_400_000;
 
 // Same UTC-anchored arithmetic the implementation uses, so the expected

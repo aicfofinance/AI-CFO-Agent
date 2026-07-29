@@ -1,8 +1,15 @@
+import { generateText } from "ai";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 
+import { detectRateLimitError, getModel } from "@/lib/ai/models/router";
 import { getCashPosition } from "@/lib/financial/calculations/cash-flow";
 import { db } from "@/lib/platform/db/client";
-import { cashFlowProjections, transactions } from "@/lib/platform/db/schema";
+import {
+  cashFlowProjections,
+  findings,
+  intelligenceRuns,
+  transactions,
+} from "@/lib/platform/db/schema";
 
 import { buildArAgingSchedule } from "./ar-aging";
 
@@ -457,4 +464,153 @@ export async function storeCashFlowProjection(
       ...writeValues,
     });
   });
+}
+
+/**
+ * Buffer threshold below which a projection's minimum balance is treated as a
+ * cash-flow risk. Zero means "the balance is projected to dip below zero at some
+ * point in the window" — the point at which a finding is warranted. Kept as a
+ * named constant so the risk boundary is documented in one place rather than a
+ * bare `0` at the call site.
+ */
+const CASH_FLOW_RISK_BUFFER_THRESHOLD = 0;
+
+/**
+ * Projected minimum balance (inclusive-exclusive) below which the finding is
+ * escalated from `high` to `critical` severity. A shortfall deeper than $10,000
+ * is treated as critical.
+ */
+const CASH_FLOW_CRITICAL_BALANCE = -10_000;
+
+/**
+ * Whether a projection's minimum balance breaches the buffer threshold and
+ * therefore warrants a `cash_flow_risk` finding.
+ *
+ * `parseFloat` is used for the threshold comparison ONLY — no monetary value is
+ * computed, stored, or returned from it. `minimumProjectedBalance` remains the
+ * original DECIMAL string everywhere it is persisted (CLAUDE.md, Financial Data
+ * Rules).
+ */
+export function isCashFlowRisk(projection: CashFlowProjection): boolean {
+  return parseFloat(projection.minimumProjectedBalance) < CASH_FLOW_RISK_BUFFER_THRESHOLD;
+}
+
+/**
+ * The `expires_at` a `cash_flow_risk` finding should carry: UTC midnight the day
+ * AFTER the projected risk date. The finding stays actionable through the whole
+ * of the risk date and drops out of the feed the moment that date has passed —
+ * a risk projected for Oct 21 expires on Oct 22 (CLAUDE.md, selective expiry).
+ * The feed query filters `expires_at > NOW()`, so expiring at the *start* of the
+ * risk date would hide the finding for the entire day it matters most.
+ */
+function cashFlowRiskExpiry(riskDate: string): Date {
+  return new Date(projectionUtcMidnightMs(riskDate) + MS_PER_DAY);
+}
+
+/**
+ * The outcome of {@link generateCashFlowRiskFinding}. `created` means a
+ * `cash_flow_risk` finding was written; `skipped` means the AI provider returned
+ * HTTP 429 and the run was marked skipped instead — the caller must return
+ * cleanly without running further analysis (CLAUDE.md, Intelligence Engine
+ * Rules: never retry, never fail over to a different provider).
+ */
+export type CashFlowRiskFindingResult =
+  | { status: "created" }
+  | { status: "skipped"; reason: "rate_limit" };
+
+/**
+ * Generates and stores a `cash_flow_risk` finding for a projection whose minimum
+ * balance has already been determined to breach the buffer threshold (call
+ * {@link isCashFlowRisk} first).
+ *
+ * The AI is used only to phrase the finding — the numbers, severity, and expiry
+ * are computed deterministically here. Two `getModel()` calls (never a provider
+ * import — CLAUDE.md) produce a short headline and a plain-English detail. The
+ * standard financial disclaimer is NOT appended: it is an end-user response
+ * concern handled by the streaming handler, not part of internal finding storage.
+ *
+ * Rate-limit guard: both AI calls run inside one try/catch. On a 429 — detected
+ * via `detectRateLimitError()` — the run is marked `status = 'skipped'`,
+ * `skipped_reason = 'rate_limit'` and the function returns cleanly. It never
+ * rethrows a 429 (a rethrow would make Inngest retry a condition that will not
+ * change) and never fails over to a different provider. Any non-429 error is
+ * rethrown so the step surfaces the genuine failure.
+ *
+ * `expires_at` is set to the day after the projection's `riskDate`
+ * (see {@link cashFlowRiskExpiry}); a projection with no `riskDate` (balance
+ * negative on average but never crossing zero on a specific day within the
+ * window) leaves it NULL.
+ *
+ * @param orgId Current org id. Every write is org-scoped.
+ * @param intelligenceRunId The `intelligence_runs.id` this finding belongs to.
+ * @param projection The projection returned by {@link buildCashFlowProjection}.
+ */
+export async function generateCashFlowRiskFinding(
+  orgId: string,
+  intelligenceRunId: string,
+  projection: CashFlowProjection,
+): Promise<CashFlowRiskFindingResult> {
+  const minimumBalance = parseFloat(projection.minimumProjectedBalance);
+  // Shortfall magnitude for the prompt copy — display-only, never persisted.
+  const shortfall = Math.abs(minimumBalance).toFixed(2);
+  const severity = minimumBalance < CASH_FLOW_CRITICAL_BALANCE ? "critical" : "high";
+  const riskDateText = projection.riskDate ?? "within the next 30 days";
+
+  // Draft-level task — default complexity routing (CLAUDE.md: no escalation to a
+  // larger model without specific justification).
+  const model = getModel(0.5);
+
+  try {
+    const { text: headline } = await generateText({
+      model,
+      prompt:
+        `Write a single alert headline for a small-business finance dashboard. ` +
+        `The company's cash balance is projected to fall to a minimum of -$${shortfall} ` +
+        `(negative) within the next 30 days. State the cash shortfall risk and that ` +
+        `action is needed. Keep it under 110 characters. Return only the headline ` +
+        `text, with no surrounding quotes and no preamble.`,
+      maxTokens: 60,
+    });
+
+    const { text: detail } = await generateText({
+      model,
+      prompt:
+        `Write 2-3 plain-English sentences for a small-business owner explaining a ` +
+        `projected cash shortfall. The projected minimum cash balance is -$${shortfall} ` +
+        `within the next 30 days, with the shortfall first occurring on ${riskDateText}. ` +
+        `Explain what this means for the business and suggest one concrete step, such as ` +
+        `accelerating outstanding invoice collections or deferring a non-essential ` +
+        `expense. Do not give formal financial advice. Return only the explanation.`,
+      maxTokens: 220,
+    });
+
+    await db.insert(findings).values({
+      orgId,
+      intelligenceRunId,
+      findingType: "cash_flow_risk",
+      severity,
+      // Headline is VARCHAR(120) with a DB CHECK (length <= 120); hard-cap here
+      // so an over-long model response can never violate the constraint.
+      headline: headline.trim().slice(0, 120),
+      detail: detail.trim(),
+      status: "active",
+      expiresAt: projection.riskDate ? cashFlowRiskExpiry(projection.riskDate) : null,
+      relatedData: {
+        minimumProjectedBalance: projection.minimumProjectedBalance,
+        riskDate: projection.riskDate,
+        confidenceLevel: projection.confidenceLevel,
+      },
+    });
+
+    return { status: "created" };
+  } catch (err) {
+    if (detectRateLimitError(err)) {
+      await db
+        .update(intelligenceRuns)
+        .set({ status: "skipped", skippedReason: "rate_limit" })
+        .where(eq(intelligenceRuns.id, intelligenceRunId));
+      return { status: "skipped", reason: "rate_limit" };
+    }
+    throw err;
+  }
 }

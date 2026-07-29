@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Cash flow projection intelligence step | 6.2 | ai-engine-engineer | 2026-07-29 |
+| Anomaly detection step | 6.3 | ai-engine-engineer | 2026-07-29 |
 
 ---
 
@@ -31,7 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Anomaly detection step | 6.3 | ai-engine-engineer | 6.2 |
+| Margin deterioration detection | 6.4 | ai-engine-engineer | 6.3 |
 
 ---
 
@@ -93,6 +93,7 @@
 | Cash flow projection storage + API | 5.7 | 2026-07-29 | storeCashFlowProjection (db.transaction read-then-write). GET /api/cashflow/projection: 422 on <60d, confidenceLevel always present. 46/46 tests. tsc+lint exit 0. |
 | Intelligence runner scaffold and guards | 6.0 | 2026-07-29 | intelligenceRun Inngest fn, 2 guards (60d history + sync_jobs check), skipped_reason set, returns clean. Registered in serve handler. tsc+lint exit 0. |
 | AI provider routing utility | 6.1 | 2026-07-29 | getModel(complexity) → gemini-2.0-flash or claude-sonnet/haiku-4.5 by threshold 0.7. detectRateLimitError. AI SDK packages installed. 15/15 tests. tsc+lint exit 0. |
+| Cash flow projection intelligence step | 6.2 | 2026-07-29 | step.run('cash-flow-projection')+('cash-flow-risk-finding'). getModel(0.5), 429→skip. expiresAt=riskDate+1d. 8/8 tests. 69/69 total. tsc+lint exit 0. |
 
 ---
 
