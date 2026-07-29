@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Tailwind v4 + CSS design tokens | 7.0 | product-engineer | 2026-07-29 |
+| shadcn/ui + base components (7.1–7.6) | 7.1–7.6 | product-engineer | 2026-07-29 |
 
 ---
 
@@ -102,6 +102,7 @@
 | Intelligence fan-out wiring | 6.9 | 2026-07-29 | intelligenceFanOut cron 0 6 * * *. selectDistinct orgIds, dispatches intelligence/run.requested per org. All 5 intelligence fns registered in serve handler. 122/122. tsc+lint exit 0. commit a5792ba |
 | Intelligence feed + dismiss endpoints | 6.10+6.11 | 2026-07-29 | GET /api/intelligence/feed: cursor-paginated, severity-sorted, bySeverity counts, hasActionableType. POST /findings/:id/dismiss: 409 on re-dismiss. 14 new tests. 136/136. tsc+lint exit 0. commit 9d89f84 |
 | Intelligence engine integration test | 6.12 | 2026-07-29 | full-run.test.ts: expense spike→anomaly, overdue invoice→collections_opportunity (invoiceId in relatedData), duplicate vendor→duplicate_subscription. 6 tests, 9ms. 142/142. tsc+lint exit 0. commit 3afbe87 |
+| Tailwind v4 + CSS design tokens | 7.0 | 2026-07-29 | src/styles/globals.css: 40+ CSS vars, @theme Tailwind tokens, .font-numeric, focus rings. Inter+IBM Plex Mono fonts. layout.tsx updated. system.ts placeholder added. 142/142. tsc+lint exit 0. commit 040b7dc |
 
 ---
 
