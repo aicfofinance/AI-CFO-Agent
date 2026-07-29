@@ -54,6 +54,31 @@ type CashFlowErrorResponse = {
 type CashFlowApiResponse = CashFlowSuccessResponse | CashFlowErrorResponse;
 
 // ---------------------------------------------------------------------------
+// Intelligence feed types — inline, for extracting collections_opportunity
+// ---------------------------------------------------------------------------
+
+type CollectionsFinding = {
+  id: string;
+  findingType: "collections_opportunity";
+  headline: string;
+  relatedData: Record<string, unknown> | null;
+};
+
+type FeedFinding = {
+  id: string;
+  findingType: string;
+  headline: string;
+  relatedData: Record<string, unknown> | null;
+  hasActionableType: boolean;
+};
+
+type FeedApiResponse = {
+  data: {
+    findings: FeedFinding[];
+  };
+};
+
+// ---------------------------------------------------------------------------
 // Page props — Next.js 15 App Router (searchParams is a Promise)
 // ---------------------------------------------------------------------------
 
@@ -88,10 +113,16 @@ export default async function CashflowPage({ searchParams }: Props): Promise<Rea
   const baseUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const cookie = (await headers()).get("cookie") ?? "";
 
-  const res = await fetch(`${baseUrl}/api/cashflow/projection?days=${days}`, {
-    headers: { cookie },
-    cache: "no-store",
-  });
+  const [res, feedRes] = await Promise.all([
+    fetch(`${baseUrl}/api/cashflow/projection?days=${days}`, {
+      headers: { cookie },
+      cache: "no-store",
+    }),
+    fetch(`${baseUrl}/api/intelligence/feed?limit=50`, {
+      headers: { cookie },
+      cache: "no-store",
+    }),
+  ]);
 
   // 401: session expired or absent — send to login
   if (res.status === 401) {
@@ -220,6 +251,30 @@ export default async function CashflowPage({ searchParams }: Props): Promise<Rea
 
   const { data: projection } = json;
 
+  // Extract the first active collections_opportunity finding so the detail
+  // panel can offer "Accelerate these invoices" → AgenticModal.
+  // If the feed fetch fails or no matching finding exists, collectionsFinding
+  // is undefined and the button remains disabled.
+  let collectionsFinding: CollectionsFinding | undefined;
+  if (feedRes.ok) {
+    try {
+      const feedJson = (await feedRes.json()) as FeedApiResponse;
+      const found = feedJson.data.findings.find(
+        (f) => f.findingType === "collections_opportunity" && f.hasActionableType === true,
+      );
+      if (found !== undefined) {
+        collectionsFinding = {
+          id: found.id,
+          findingType: "collections_opportunity",
+          headline: found.headline,
+          relatedData: found.relatedData,
+        };
+      }
+    } catch {
+      // Feed parse failure is non-fatal — button stays disabled
+    }
+  }
+
   return (
     <div>
       {pageHeader}
@@ -231,6 +286,7 @@ export default async function CashflowPage({ searchParams }: Props): Promise<Rea
           minimumProjectedBalance={projection.minimumProjectedBalance}
           riskDate={projection.riskDate}
           confidenceLevel={projection.confidenceLevel}
+          {...(collectionsFinding !== undefined ? { collectionsFinding } : {})}
         />
       </div>
 

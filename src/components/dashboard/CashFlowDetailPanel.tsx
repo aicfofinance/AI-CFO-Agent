@@ -5,17 +5,18 @@
  * when the user clicks a risk date marker.
  *
  * Shows the selected day's projected inflows, outflows, and end-of-day balance.
- * Always renders the "Accelerate these invoices" button as disabled — it is
- * wired up in Phase 9 (Step 9.7).
+ * If a collections_opportunity finding is provided via `collectionsFinding`, the
+ * "Accelerate these invoices" button opens AgenticModal (Step 9.7).
  *
  * Per CLAUDE.md: all monetary values render through CurrencyAmount; no inline
  * style props; parseFloat only acceptable for display comparisons (not arithmetic).
  */
 
-import React from "react";
+import React, { useState } from "react";
 
 import { CurrencyAmount } from "@/components/shared/CurrencyAmount";
 import { Button } from "@/components/ui/button";
+import { AgenticModal } from "@/components/dashboard/AgenticModal";
 
 // ---------------------------------------------------------------------------
 // Types — match the DailyBalance shape from CashFlowChart / GET /api/cashflow/projection
@@ -28,6 +29,13 @@ type DailyBalance = {
   outflows: string; // DECIMAL string — expected outgoing this day (stored positive)
 };
 
+type CollectionsFinding = {
+  id: string;
+  findingType: "collections_opportunity";
+  headline: string;
+  relatedData: Record<string, unknown> | null;
+};
+
 type CashFlowDetailPanelProps = {
   /** ISO date string of the selected risk date (e.g. "2026-08-15") */
   selectedDate: string;
@@ -35,7 +43,23 @@ type CashFlowDetailPanelProps = {
   dailyBalances: DailyBalance[];
   /** Called when the user clicks the close (×) button */
   onClose: () => void;
+  /**
+   * If a collections_opportunity finding is active, enables the
+   * "Accelerate these invoices" button and opens AgenticModal when clicked.
+   * If undefined, the button remains disabled.
+   */
+  collectionsFinding?: CollectionsFinding;
 };
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function extractInvoiceCount(relatedData: Record<string, unknown> | null): number {
+  if (!relatedData) return 0;
+  const invoices = relatedData["invoices"];
+  return Array.isArray(invoices) ? invoices.length : 0;
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -45,7 +69,10 @@ export function CashFlowDetailPanel({
   selectedDate,
   dailyBalances,
   onClose,
+  collectionsFinding,
 }: CashFlowDetailPanelProps): React.JSX.Element | null {
+  const [showAccelerateModal, setShowAccelerateModal] = useState(false);
+
   const dayData = dailyBalances.find((d) => d.date === selectedDate);
 
   // Guard: if the date is not in the projection array, render nothing
@@ -70,6 +97,16 @@ export function CashFlowDetailPanel({
   // This is string manipulation for display, not monetary arithmetic.
   const outflowDisplay =
     parseFloat(dayData.outflows) > 0 ? `-${dayData.outflows}` : dayData.outflows;
+
+  // Button label includes invoice count when available.
+  const invoiceCount =
+    collectionsFinding !== undefined ? extractInvoiceCount(collectionsFinding.relatedData) : 0;
+  const buttonLabel =
+    collectionsFinding === undefined || invoiceCount === 0
+      ? "Accelerate these invoices"
+      : invoiceCount === 1
+        ? "Accelerate 1 invoice"
+        : `Accelerate ${invoiceCount} invoices`;
 
   return (
     <div className="mt-4 rounded-lg border border-[var(--border-default)] border-l-4 border-l-[#C42030] bg-[var(--surface-card)] p-6">
@@ -122,12 +159,30 @@ export function CashFlowDetailPanel({
         </p>
       )}
 
-      {/* CTA — disabled until Phase 9 (Step 9.7) wires the agentic flow */}
+      {/* CTA — enabled when a collections_opportunity finding is available */}
       <div className="mt-4">
-        <Button disabled={true} title="Available in a future update" variant="outline" size="sm">
-          Accelerate these invoices
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={collectionsFinding === undefined}
+          title={collectionsFinding === undefined ? "Available in a future update" : undefined}
+          onClick={() => setShowAccelerateModal(true)}
+        >
+          {buttonLabel}
         </Button>
       </div>
+
+      {/* AgenticModal — rendered only when a collections finding is present */}
+      {collectionsFinding !== undefined && (
+        <AgenticModal
+          open={showAccelerateModal}
+          onOpenChange={setShowAccelerateModal}
+          findingId={collectionsFinding.id}
+          findingType="collections_opportunity"
+          headline={collectionsFinding.headline}
+          relatedData={collectionsFinding.relatedData}
+        />
+      )}
     </div>
   );
 }

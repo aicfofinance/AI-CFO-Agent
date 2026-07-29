@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| AgenticModal State 5 + action tracking | 9.6 | product-engineer | 2026-07-30 |
+| Wire all agentic CTAs | 9.7 | product-engineer | 2026-07-30 |
 
 ---
 
@@ -31,7 +31,6 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Wire all agentic CTAs | 9.7 | product-engineer | 9.6, 8.5 |
 
 ---
 
@@ -116,6 +115,7 @@
 | Draft templates (3 action types) | 9.1 | 2026-07-30 | invoice-acceleration + subscription-cancellation + vendor-negotiation. 18 new tests (7+5+6). 160/160 total. tsc+lint exit 0. |
 | PATCH /api/intelligence/actions/:id | 9.2 | 2026-07-30 | draft→approved→copied legal transitions, dual write on copied (draft+finding actioned), 400 on illegal transitions. tsc+lint exit 0. |
 | AgenticModal states 1–4 (confirm+loading+review+copy) | 9.3–9.5 | 2026-07-30 | Five-state modal. AI disclaimer visible in State 3. CTA "Copy to clipboard". Null recipientEmail: literal TO: placeholder in copy text. tsc+lint exit 0. 160/160. commit 679dc13 |
+| AgenticModal State 5 + action tracking | 9.6 | 2026-07-30 | PATCH approved on "Looks good->", PATCH copied on copy. router.refresh() on close from done removes actioned finding. Visual-only "Mark as sent" toggle. tsc+lint exit 0. 160/160. commit cf87dcb |
 
 ---
 

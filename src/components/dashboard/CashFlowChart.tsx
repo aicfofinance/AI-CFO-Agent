@@ -47,11 +47,19 @@ type DailyBalance = {
   outflows: string; // DECIMAL string — expected outgoing this day
 };
 
+type CollectionsFinding = {
+  id: string;
+  findingType: "collections_opportunity";
+  headline: string;
+  relatedData: Record<string, unknown> | null;
+};
+
 type CashFlowChartProps = {
   projectedData: DailyBalance[];
   minimumProjectedBalance: string;
   riskDate: string | null;
   confidenceLevel: "low" | "medium" | "high";
+  collectionsFinding?: CollectionsFinding;
 };
 
 // ---------------------------------------------------------------------------
@@ -75,6 +83,7 @@ export function CashFlowChart({
   minimumProjectedBalance,
   riskDate,
   confidenceLevel,
+  collectionsFinding,
 }: CashFlowChartProps): React.JSX.Element {
   // Track which risk date the user has clicked to show the inline detail panel
   const [selectedRiskDate, setSelectedRiskDate] = useState<string | null>(null);
@@ -229,6 +238,7 @@ export function CashFlowChart({
           selectedDate={selectedRiskDate}
           dailyBalances={projectedData}
           onClose={() => setSelectedRiskDate(null)}
+          {...(collectionsFinding !== undefined ? { collectionsFinding } : {})}
         />
       )}
     </div>
