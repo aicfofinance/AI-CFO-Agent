@@ -23,7 +23,7 @@
 
 ## Current Step
 
-**Step 4.7** — Transaction normalization (in progress)
+**Step 4.8** — Incremental sync logic (in progress)
 
 **Active Decision — Step 2.4 expedited:** Step 2.4 (`getRequestContext`) was implemented before Step 4.2 even though 2.0/2.1 are blocked (Supabase SMTP external action). The code and unit tests are complete; live auth verification awaits 2.0. All Phase 4 API endpoints depend on `getRequestContext()` so this unblocks the entire integration layer.
 
@@ -81,6 +81,7 @@
 | 4.4 | QB API client factory | 2026-07-29 | getQuickBooksClient: decrypt, 5min proactive refresh, rotating token write-back, auth_expired on failure, no token values in logs. commit 99ce9b4 |
 | 4.5 | Chart of Accounts import | 2026-07-29 | importAccounts: upsert, dataQualityLog, no rawData (PII), parentAccountId deferred. commit 98ce403 |
 | 4.6 | Transaction import (initial 13-month pull) | 2026-07-29 | importTransactions: 9 QB entity types, paginated 1000, onConflictDoUpdate dedup, 429 retry (30s), records_synced per batch. tsc+lint exit 0. |
+| 4.7 | Transaction normalization | 2026-07-29 | normalizeTransactionType (16-type QB map, 'adjustment' fallback). normalize.test.ts 13/13 pass. No undefined categories. tsc+lint exit 0. |
 
 ---
 

@@ -1,8 +1,8 @@
 /**
  * QuickBooks → internal schema normalization utilities.
  *
- * This file currently covers Chart of Accounts normalization (Step 4.5).
- * Transaction normalization will be added in Step 4.7.
+ * Covers Chart of Accounts normalization (Step 4.5) and transaction type /
+ * category normalization (Step 4.7).
  *
  * ─── Account field mapping ───────────────────────────────────────────────────
  *
@@ -213,4 +213,62 @@ export function normalizeQBCategory(
     }
   }
   return "other";
+}
+
+// ─── Transaction type normalization (Step 4.7) ───────────────────────────────
+
+/**
+ * QB field mapping for transaction types.
+ *
+ * Source field                  Internal column              Null handling
+ * ─────────────────────────────────────────────────────────────────────────────
+ * TxnType (string)              transactions.transaction_type  unknown → 'adjustment'
+ *
+ * Mapping rationale:
+ *   - Customer-side transactions that recognise revenue are mapped to 'income'.
+ *   - Vendor-side transactions that record spending are mapped to 'expense'.
+ *     CreditCardCredit and VendorCredit are expense-side reductions; keeping
+ *     them in 'expense' preserves directional sign in the amount column.
+ *   - Transfer moves money between accounts with no P&L impact → 'transfer'.
+ *   - JournalEntry is a manual accounting adjustment → 'adjustment'.
+ *   - Any unknown future QB TxnType falls back to 'adjustment' (safest
+ *     catch-all: it will appear in reports without distorting income/expense).
+ *
+ * Intentionally dropped QB TxnType values (not stored separately):
+ *   - TimeActivity     Time tracking entry, no monetary impact.
+ *   - Estimate         Sales estimate, not yet recognised revenue.
+ *   - StatementCharge  Legacy/internal QB type, not returned by QBO v3.
+ */
+const QB_TRANSACTION_TYPE_MAP: Record<string, string> = {
+  Invoice: "income",
+  Payment: "income",
+  CreditMemo: "income",
+  Deposit: "income",
+  SalesReceipt: "income",
+  Purchase: "expense",
+  Expense: "expense",
+  Bill: "expense",
+  BillPayment: "expense",
+  Check: "expense",
+  CreditCardCredit: "expense",
+  PurchaseOrder: "expense",
+  VendorCredit: "expense",
+  RefundReceipt: "expense",
+  Transfer: "transfer",
+  JournalEntry: "adjustment",
+} as const;
+
+/**
+ * Maps a QuickBooks `TxnType` string to the internal `transaction_type` value.
+ *
+ * Any TxnType not present in the mapping falls back to `'adjustment'` — this is
+ * the safest catch-all because an unknown transaction type has unclear P&L
+ * impact and should be reviewed rather than silently inflating income or expense
+ * totals.
+ *
+ * @param qbTxnType - The raw `TxnType` string from the QB API response.
+ * @returns One of: `'income'` | `'expense'` | `'transfer'` | `'adjustment'`.
+ */
+export function normalizeTransactionType(qbTxnType: string): string {
+  return QB_TRANSACTION_TYPE_MAP[qbTxnType] ?? "adjustment";
 }

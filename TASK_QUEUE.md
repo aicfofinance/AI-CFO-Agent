@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Transaction normalization | 4.7 | integration-engineer | 2026-07-29 |
+| Incremental sync logic | 4.8 | integration-engineer | 2026-07-29 |
 
 ---
 
@@ -31,7 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| Incremental sync logic | 4.8 | integration-engineer | 4.7 |
+| Inngest sync job with ordered steps | 4.9 | integration-engineer | 4.8 |
 
 ---
 
@@ -76,6 +76,7 @@
 | QB API client factory | 4.4 | 2026-07-29 | getQuickBooksClient: decrypt, proactive refresh, rotating token write-back, auth_expired on failure. commit 99ce9b4 |
 | Chart of Accounts import | 4.5 | 2026-07-29 | importAccounts: upsert on (orgId,sourceSystem,externalId), dataQualityLog for malformed, no rawData (PII). commit 98ce403 |
 | Transaction import (initial 13-month pull) | 4.6 | 2026-07-29 | importTransactions: 9 QB entity types, paginated batches of 1000, onConflictDoUpdate dedup, 429 retry (30s), records_synced per batch. tsc+lint exit 0. |
+| Transaction normalization | 4.7 | 2026-07-29 | normalizeTransactionType added to normalize.ts. normalize.test.ts: 13/13 tests pass. No undefined categories. tsc+lint exit 0. |
 
 ---
 
