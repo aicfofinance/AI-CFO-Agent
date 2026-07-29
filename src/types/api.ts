@@ -101,6 +101,44 @@ export type ConnectionSummary = {
   realmId: string | null;
 };
 
+/**
+ * One row in `GET /api/intelligence/findings` — the multi-status finding
+ * archive backing the `/alerts` page. Unlike `FindingFeedItem` (active feed),
+ * this shape carries the dismissal audit fields (`dismissedAt`,
+ * `dismissReason`), which are `null` unless the finding's status is
+ * `dismissed`. `relatedData` monetary values remain DECIMAL strings exactly as
+ * they leave Postgres — never parsed to a JS `number` (CLAUDE.md, Financial
+ * Data Rules). `createdAt` / `expiresAt` / `dismissedAt` are ISO-8601 strings.
+ *
+ * This is the shape nested under each element of the `{ data, meta }` envelope.
+ */
+export type FindingArchiveItem = {
+  id: string;
+  findingType: string;
+  severity: string;
+  headline: string;
+  detail: string;
+  recommendedAction: string | null;
+  relatedData: Record<string, unknown>;
+  status: string;
+  createdAt: string;
+  expiresAt: string | null;
+  hasActionableType: boolean;
+  dismissedAt: string | null;
+  dismissReason: string | null;
+};
+
+/**
+ * Response payload of `GET /api/intelligence/findings`. `meta.total` counts the
+ * full filtered population (all matching statuses/types/dates), not just the
+ * current page. `meta.nextCursor` is the opaque Base64 cursor for the next
+ * page, or `null` on the last page.
+ */
+export type FindingArchiveResponse = {
+  data: FindingArchiveItem[];
+  meta: { total: number; nextCursor: string | null };
+};
+
 export type FinancialSummaryResponse = {
   currentMonth: {
     revenue: string;

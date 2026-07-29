@@ -23,7 +23,9 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| First intelligence brief screen | 10.4 | product-engineer | 2026-07-30 |
+| Alerts archive page + findings endpoint | 14.0-api | backend-engineer | 2026-07-30 |
+| Alerts archive UI | 14.0-ui | product-engineer | 2026-07-30 |
+| Token encryption + API auth audit | 15.1 | backend-engineer | 2026-07-30 |
 
 ---
 
@@ -41,7 +43,8 @@
 |------|--------|------------|
 | GitHub Actions CI pipeline | 1.6 | All code deps met. Needs push to GitHub — git push blocked by Claude Code auto-classifier. User must run `git push origin main` or authorize push in settings. |
 | Live auth DoD verification | 2.0–2.6 | External action: Supabase Dashboard → Auth → SMTP → smtp.resend.com:465, username=resend, password=RESEND_API_KEY. Set Site URL=http://localhost:3000, add /api/auth/callback to redirect allowlist. Code is written. |
-| *(none — 13.x blocked by Stripe credentials)* | | | |
+| Notification preferences + token expiry banner | 14.1 | backend-engineer + product-engineer | 14.0 (7.7 → treat as 7.6 ✓) |
+| 14-day suppression + terms/privacy pages | 14.2 | backend-engineer + product-engineer | 8.0 ✓ |
 | Billing / Stripe integration | 13.x | Stripe credentials not obtained |
 | Billing / Stripe integration | 13.x | Stripe credentials not obtained |
 
@@ -149,6 +152,7 @@
 | Data & Privacy export endpoint | 10.5-api | 2026-07-30 | GET /api/data/export: jszip@3.10.1, Upstash+in-process rate limit (1/hr/org), zip contains conversations/findings/action_drafts/reports/README.txt, org-slug filename, Retry-After header. 271/271 tests (4 new). tsc+lint exit 0. commit f819bd3 |
 | Start fresh + connect screen update | 10.2 | 2026-07-30 | onboarding/connect/page.tsx: QB+Xero provider cards, ShieldCheck sovereignty banner above options, CSV fallback. onboarding/start-fresh/page.tsx: 3-step ol, CTA→/connect. 271/271. tsc+lint exit 0. commit 335a71f |
 | Onboarding sync waiting page | 10.3 | 2026-07-30 | onboarding/sync/page.tsx: two-phase polling (phase1: syncStatus=success, phase2: lastIntelligenceRunAt!=null), 90s timeout, Retry/Continue, dynamic text 4 messages. 271/271. tsc+lint exit 0. commit 9dec1f6 |
+| First intelligence brief screen | 10.4 | 2026-07-30 | onboarding/first-brief/page.tsx: server component, FindingCard list or IntelligenceFeedHealthy, data sovereignty banner, CTAs →/dashboard and →/cashflow. Phase 10 complete. 271/271. tsc+lint exit 0. commit 1e8ee3b |
 | Data & Privacy settings UI | 10.5-ui | 2026-07-30 | settings/account/page.tsx: Account section (auth/me), Data & Privacy section, Download your data button (blob URL), 429 surfaced verbatim. 271/271. tsc+lint exit 0. commit 335a71f |
 
 ---
