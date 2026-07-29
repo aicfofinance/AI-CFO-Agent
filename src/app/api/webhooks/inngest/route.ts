@@ -6,6 +6,7 @@ import { syncSingleOrg } from "@/jobs/sync/single-org";
 import { intelligenceFanOut } from "@/jobs/intelligence/fan-out";
 import { intelligenceRun } from "@/jobs/intelligence/run";
 import { intelligenceEmail } from "@/jobs/intelligence/email";
+import { messageCleanup } from "@/jobs/billing/reset-quotas";
 
 /**
  * Inngest serve handler — the single registration point for every Inngest
@@ -14,5 +15,12 @@ import { intelligenceEmail } from "@/jobs/intelligence/email";
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [syncFanOut, syncSingleOrg, intelligenceFanOut, intelligenceRun, intelligenceEmail],
+  functions: [
+    syncFanOut,
+    syncSingleOrg,
+    intelligenceFanOut,
+    intelligenceRun,
+    intelligenceEmail,
+    messageCleanup,
+  ],
 });
