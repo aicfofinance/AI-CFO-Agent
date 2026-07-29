@@ -1,28 +1,28 @@
 "use client";
 
 /**
- * /ask page — Step 11.2: context-aware empty state.
+ * /ask page — Step 11.3: streaming Q&A wired.
  *
- * On mount (parallel fetches):
- *   1. POST /api/conversations  { title: "Q&A Session" }  → stores conversationId
- *   2. GET  /api/intelligence/feed                        → determines empty-state variant
+ * Builds on Step 11.2's context-aware empty state by wiring SSE streaming via
+ * manual fetch + ReadableStream parsing (Vercel AI SDK data-stream format).
  *
- * Three empty-state variants (priority order):
- *   1. ?finding_id=[id] param    → finding context block + pre-filled chat input
- *   2. Active high/critical      → urgent finding headline + "talk through options" CTA
- *   3. Healthy (fallback)        → four standard question chips
- *
- * ChatInput and the data sovereignty notice always render at the bottom.
- * Actual streaming is wired in Step 11.3.
+ * Message endpoint expects: POST { question: string }
+ * Stream format (data-stream protocol):
+ *   0:"text chunk"  → text part (JSON-encoded string value)
+ *   d:{...}         → done signal (ignored — we read until the stream closes)
+ *   other prefixes  → silently ignored
  *
  * useSearchParams() requires a Suspense boundary per Next.js 15 App Router.
  */
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
+import { AIResponse } from "@/components/chat/AIResponse";
 import { AIResponseSkeleton } from "@/components/chat/AIResponseSkeleton";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { UserMessage } from "@/components/chat/UserMessage";
 
 // ---------------------------------------------------------------------------
 // Types — mirror the shape returned by GET /api/intelligence/feed
@@ -56,6 +56,40 @@ type FeedSuccess = {
 };
 
 // ---------------------------------------------------------------------------
+// Chat message type
+// ---------------------------------------------------------------------------
+
+type ChatMessage = { role: "user" | "assistant"; content: string };
+
+// ---------------------------------------------------------------------------
+// SSE stream parsing
+// ---------------------------------------------------------------------------
+
+/**
+ * Extracts text from a Vercel AI SDK data-stream chunk.
+ * Lines prefixed with "0:" contain JSON-encoded text parts.
+ * Example: `0:"hello world"\n` → "hello world"
+ */
+function parseStreamChunk(chunk: string): string {
+  const lines = chunk.split("\n");
+  let text = "";
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("0:")) {
+      try {
+        const parsed: unknown = JSON.parse(trimmed.slice(2));
+        if (typeof parsed === "string") {
+          text += parsed;
+        }
+      } catch {
+        // malformed line — skip silently
+      }
+    }
+  }
+  return text;
+}
+
+// ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
@@ -85,7 +119,13 @@ const URGENT_SEVERITY_CLASSES = {
 // ---------------------------------------------------------------------------
 
 /** Variant 1 — an active high/critical finding exists (no ?finding_id param). */
-function UrgentFindingEmptyState({ finding }: { finding: FindingFeedItem }): React.JSX.Element {
+function UrgentFindingEmptyState({
+  finding,
+  onSubmit,
+}: {
+  finding: FindingFeedItem;
+  onSubmit: (question: string) => void;
+}): React.JSX.Element {
   // Ternary narrows finding.severity to the two keys present in URGENT_SEVERITY_CLASSES.
   // urgentFinding is filtered to critical|high upstream, so other values won't reach here.
   const severityClass =
@@ -100,7 +140,7 @@ function UrgentFindingEmptyState({ finding }: { finding: FindingFeedItem }): Rea
           Needs your attention
         </p>
 
-        {/* Finding headline with severity left-border — uses Tailwind class constant */}
+        {/* Finding headline with severity left-border */}
         <div className={`mb-4 rounded-r-lg px-4 py-3 ${severityClass}`}>
           <p className="text-[15px] font-medium leading-snug text-[var(--text-primary)]">
             {finding.headline}
@@ -112,11 +152,12 @@ function UrgentFindingEmptyState({ finding }: { finding: FindingFeedItem }): Rea
         </p>
 
         {/*
-         * CTA — visible in step 11.2. Actual submit wired in step 11.3.
+         * CTA — submits the question about this finding.
          * NOT labelled "Send" (CLAUDE.md: agentic CTA must never be "Send").
          */}
         <button
           type="button"
+          onClick={() => onSubmit(`Tell me more about: ${finding.headline}`)}
           aria-label={`Tell me more about: ${finding.headline}`}
           className="inline-flex items-center gap-2 rounded bg-[var(--primary-500)] px-4 py-2 text-sm font-medium text-white transition-colors duration-100 hover:bg-[var(--primary-600)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary-500)]"
         >
@@ -149,7 +190,11 @@ function FindingContextEmptyState({ finding }: { finding: FindingFeedItem }): Re
 }
 
 /** Variant 3 — healthy state, no high/critical findings and no finding_id param. */
-function HealthyEmptyState(): React.JSX.Element {
+function HealthyEmptyState({
+  onSubmit,
+}: {
+  onSubmit: (question: string) => void;
+}): React.JSX.Element {
   return (
     <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
       <h2 className="text-xl font-semibold text-[var(--text-primary)]">
@@ -165,9 +210,7 @@ function HealthyEmptyState(): React.JSX.Element {
           <button
             key={question}
             type="button"
-            /*
-             * Chips are visible in step 11.2. Click-to-fill wired in step 11.3.
-             */
+            onClick={() => onSubmit(question)}
             aria-label={`Ask: ${question}`}
             className="rounded-full border border-[var(--border-default)] bg-[var(--gray-100)] px-3.5 py-1.5 text-sm text-[var(--text-secondary)] transition-colors duration-100 hover:border-[var(--primary-200)] hover:bg-[var(--primary-50)] hover:text-[var(--primary-600)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary-500)]"
           >
@@ -187,15 +230,22 @@ function AskContent(): React.JSX.Element {
   const searchParams = useSearchParams();
   const findingId = searchParams.get("finding_id");
 
-  /**
-   * Conversation state: the getter is not read in step 11.2 (streaming is wired
-   * in step 11.3). Only the setter is needed here to persist the ID in React
-   * state so step 11.3 can destructure the getter without a breaking change.
-   */
-  const [, setConversationId] = useState<string | null>(null);
+  // Conversation & feed state
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [convError, setConvError] = useState(false);
   const [findings, setFindings] = useState<FindingFeedItem[] | null>(null);
   const [feedLoading, setFeedLoading] = useState(true);
+
+  // Streaming state
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingContent, setStreamingContent] = useState("");
+  const [queriesRemaining, setQueriesRemaining] = useState<number | null>(null);
+  const [quotaExhausted, setQuotaExhausted] = useState(false);
+
+  // Auto-submit tracking: ref for immediate sync guard, state to remount ChatInput
+  const autoSubmittedRef = useRef(false);
+  const [didAutoSubmit, setDidAutoSubmit] = useState(false);
 
   // Parallel fetches on mount
   useEffect(() => {
@@ -243,7 +293,98 @@ function AskContent(): React.JSX.Element {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Determine the correct empty-state variant
+  // Core streaming handler
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Submits a question to the messages endpoint and reads the SSE stream.
+   * Uses useCallback with empty deps because all referenced setters are stable
+   * React state setter references.
+   */
+  const handleQuestion = useCallback(
+    async (question: string, convId: string): Promise<void> => {
+      setMessages((prev) => [...prev, { role: "user" as const, content: question }]);
+      setIsStreaming(true);
+      setStreamingContent("");
+
+      try {
+        const response = await fetch(`/api/conversations/${convId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question }),
+        });
+
+        if (!response.ok) {
+          // Check for quota exhaustion (429 + QUOTA_EXCEEDED code)
+          let quotaHit = false;
+          try {
+            const errBody = (await response.json()) as { error?: { code?: string } };
+            quotaHit = response.status === 429 && errBody.error?.code === "QUOTA_EXCEEDED";
+          } catch {
+            // ignore parse failure — treat as generic error
+          }
+
+          if (quotaHit) {
+            setQuotaExhausted(true);
+          } else {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant" as const,
+                content: "Something went wrong. Please try again.",
+              },
+            ]);
+          }
+          return;
+        }
+
+        // Read X-Queries-Remaining header
+        const remainingHeader = response.headers.get("X-Queries-Remaining");
+        if (remainingHeader !== null) {
+          const parsed = parseInt(remainingHeader, 10);
+          if (!isNaN(parsed)) {
+            setQueriesRemaining(parsed);
+          }
+        }
+
+        // Read the SSE data-stream
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let fullContent = "";
+
+        if (reader !== undefined) {
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            const extracted = parseStreamChunk(chunk);
+            if (extracted.length > 0) {
+              fullContent += extracted;
+              setStreamingContent(fullContent);
+            }
+          }
+        }
+
+        setMessages((prev) => [...prev, { role: "assistant" as const, content: fullContent }]);
+      } catch {
+        // Network error or stream interruption
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant" as const,
+            content: "Connection error. Please check your network and try again.",
+          },
+        ]);
+      } finally {
+        setIsStreaming(false);
+        setStreamingContent("");
+      }
+    },
+    [], // state setters are stable references — no external deps
+  );
+
+  // ---------------------------------------------------------------------------
+  // Auto-submit when ?finding_id param resolves to a matched finding
   // ---------------------------------------------------------------------------
 
   // Variant 2: ?finding_id=[id] — find the matching finding in the feed
@@ -258,12 +399,37 @@ function AskContent(): React.JSX.Element {
       ? (findings.find((f) => f.severity === "critical" || f.severity === "high") ?? null)
       : null;
 
-  // Pre-fill value for ChatInput when ?finding_id is present and matched
-  const chatInitialValue =
-    contextFinding !== null ? `Tell me more about: ${contextFinding.headline}` : "";
+  useEffect(() => {
+    // Ref guard prevents double-execution across re-renders
+    if (autoSubmittedRef.current) return;
+    if (contextFinding === null || conversationId === null) return;
+
+    autoSubmittedRef.current = true;
+    setDidAutoSubmit(true);
+    void handleQuestion(`Tell me more about: ${contextFinding.headline}`, conversationId);
+  }, [contextFinding, conversationId, handleQuestion]);
 
   // ---------------------------------------------------------------------------
-  // Render
+  // Derived values for the input area
+  // ---------------------------------------------------------------------------
+
+  // Pre-fill value for ChatInput when ?finding_id is present, matched, and not yet submitted
+  const chatInitialValue =
+    !didAutoSubmit && contextFinding !== null
+      ? `Tell me more about: ${contextFinding.headline}`
+      : "";
+
+  // ChatInput key: remount to clear pre-filled value after auto-submit fires
+  const chatInputKey = didAutoSubmit ? "post-auto-submit" : (contextFinding?.id ?? "default");
+
+  // Callback passed to both the input and empty-state buttons
+  function onQuestion(question: string): void {
+    if (!conversationId || isStreaming) return;
+    void handleQuestion(question, conversationId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Empty-state variant selection (shown only when no messages yet)
   // ---------------------------------------------------------------------------
 
   let emptyStateContent: React.JSX.Element;
@@ -277,10 +443,14 @@ function AskContent(): React.JSX.Element {
   } else if (contextFinding !== null) {
     emptyStateContent = <FindingContextEmptyState finding={contextFinding} />;
   } else if (urgentFinding !== null) {
-    emptyStateContent = <UrgentFindingEmptyState finding={urgentFinding} />;
+    emptyStateContent = <UrgentFindingEmptyState finding={urgentFinding} onSubmit={onQuestion} />;
   } else {
-    emptyStateContent = <HealthyEmptyState />;
+    emptyStateContent = <HealthyEmptyState onSubmit={onQuestion} />;
   }
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
 
   return (
     <div className="flex flex-col gap-6">
@@ -292,8 +462,22 @@ function AskContent(): React.JSX.Element {
         </p>
       </div>
 
-      {/* Messages / empty-state area — minimum height gives the "chat" feel */}
-      <div className="flex min-h-[320px] flex-col">{emptyStateContent}</div>
+      {/* Messages thread or empty-state area */}
+      {messages.length === 0 && !isStreaming ? (
+        <div className="flex min-h-[320px] flex-col">{emptyStateContent}</div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          {messages.map((msg, i) =>
+            msg.role === "user" ? (
+              <UserMessage key={i} content={msg.content} />
+            ) : (
+              <AIResponse key={i} content={msg.content} />
+            ),
+          )}
+          {/* Live streaming response — appended below the last user message */}
+          {isStreaming && <AIResponse content={streamingContent} isStreaming={true} />}
+        </div>
+      )}
 
       {/* Conversation error — subtle inline notice */}
       {convError && (
@@ -304,18 +488,37 @@ function AskContent(): React.JSX.Element {
 
       {/* Chat input area */}
       <div className="border-t border-[var(--border-default)] pt-4">
-        {/*
-         * key forces a remount (and re-initialisation of the textarea value)
-         * when contextFinding changes — e.g. when the feed loads and a matching
-         * ?finding_id is resolved after initial render.
-         */}
-        <ChatInput
-          key={contextFinding?.id ?? "default"}
-          onSubmit={() => {
-            // No-op in step 11.2 — streaming wired in step 11.3.
-          }}
-          initialValue={chatInitialValue}
-        />
+        {/* Queries remaining — shown once the first response arrives */}
+        {queriesRemaining !== null && (
+          <p className="mb-2 text-right text-xs text-[var(--text-muted)]">
+            {queriesRemaining} {queriesRemaining === 1 ? "query" : "queries"} remaining this month
+          </p>
+        )}
+
+        {quotaExhausted ? (
+          // Quota exhaustion state — replaces ChatInput per CLAUDE.md agentic rules
+          <div className="rounded-lg border border-[var(--warning-200)] bg-[var(--warning-50)] px-4 py-3 text-sm text-[var(--warning-700)]">
+            You&apos;ve reached your monthly query limit.{" "}
+            <Link
+              href="/settings/billing"
+              className="font-medium underline hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary-500)]"
+            >
+              Upgrade your plan →
+            </Link>
+          </div>
+        ) : (
+          /*
+           * key forces a remount (resetting textarea value) when:
+           *   1. contextFinding changes after initial render (finding_id resolved)
+           *   2. after auto-submit fires (clears the pre-filled value)
+           */
+          <ChatInput
+            key={chatInputKey}
+            onSubmit={onQuestion}
+            disabled={isStreaming || conversationId === null}
+            initialValue={chatInitialValue}
+          />
+        )}
 
         {/* Data sovereignty notice — FRONTEND_GUIDELINES Section 8 */}
         <p className="mt-2 text-center text-xs italic text-[var(--text-muted)]">
