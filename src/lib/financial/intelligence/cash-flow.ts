@@ -2,7 +2,7 @@ import { and, eq, isNotNull, sql } from "drizzle-orm";
 
 import { getCashPosition } from "@/lib/financial/calculations/cash-flow";
 import { db } from "@/lib/platform/db/client";
-import { transactions } from "@/lib/platform/db/schema";
+import { cashFlowProjections, transactions } from "@/lib/platform/db/schema";
 
 import { buildArAgingSchedule } from "./ar-aging";
 
@@ -352,4 +352,109 @@ export async function buildCashFlowProjection(
     confidenceLevel,
     generatedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * The payload served under the `{ data: T }` envelope by
+ * `GET /api/cashflow/projection`. It is `CashFlowProjection` minus `orgId`
+ * (never leaked over the API), with `projectedDays` surfaced as `projectedData`.
+ * Every monetary field stays a DECIMAL string and `confidenceLevel` is always
+ * present (CLAUDE.md: a projection is never returned without one).
+ */
+export type CashFlowProjectionResponse = {
+  projectedData: DailyBalance[];
+  minimumProjectedBalance: string; // DECIMAL string
+  riskDate: string | null; // ISO date 'YYYY-MM-DD' or null
+  confidenceLevel: CashFlowConfidenceLevel;
+  generatedAt: string; // ISO timestamp
+};
+
+/**
+ * How many whole days of transaction history the org has: the gap between the
+ * earliest `transaction_date` and today (UTC). Returns 0 when the org has no
+ * transactions at all.
+ *
+ * This is the guard the projection endpoint uses to enforce the 60-day minimum
+ * (CLAUDE.md: the endpoint returns 422 below 60 days). Kept in the intelligence
+ * layer so the route stays free of raw DB access. Org-scoped — the only filter
+ * is `org_id`, sourced by the caller from `getRequestContext()`.
+ */
+export async function getTransactionHistoryDays(orgId: string): Promise<number> {
+  const [row] = await db
+    .select({ minDate: sql<string | null>`MIN(${transactions.transactionDate})` })
+    .from(transactions)
+    .where(eq(transactions.orgId, orgId));
+
+  const minDate = row?.minDate ?? null;
+  if (minDate === null) {
+    return 0;
+  }
+
+  const todayMs = projectionUtcMidnightMs(projectionFormatUtcDate(Date.now()));
+  return Math.floor((todayMs - projectionUtcMidnightMs(minDate)) / MS_PER_DAY);
+}
+
+/**
+ * Persists a freshly computed projection to `cash_flow_projections`, keeping at
+ * most one row per (org, period length) per calendar day: if a projection for
+ * today and this period already exists it is UPDATED in place, otherwise a new
+ * row is INSERTED. This is an update-in-place upsert, never a delete-and-reinsert
+ * (CLAUDE.md, Database Query Rules).
+ *
+ * The table has no unique constraint on (org, day, period) to drive a Postgres
+ * `ON CONFLICT`, so the read-then-write runs inside a single transaction to keep
+ * the check-and-write atomic against the rare nightly-run / manual-request race.
+ *
+ * The period length is derived from the projection itself (`projectedDays.length`
+ * equals the requested 30/60/90). `generated_at` is refreshed to now on every
+ * write so the "latest per period" ordering used by the read path always points
+ * at the most recent computation.
+ *
+ * No AI provider is involved — this is a pure persistence step.
+ *
+ * @param orgId Current org id from `getRequestContext()`. Every write is
+ *   org-scoped.
+ * @param projection The projection returned by `buildCashFlowProjection`.
+ */
+export async function storeCashFlowProjection(
+  orgId: string,
+  projection: CashFlowProjection,
+): Promise<void> {
+  const projectionPeriodDays = projection.projectedDays.length;
+
+  await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: cashFlowProjections.id })
+      .from(cashFlowProjections)
+      .where(
+        and(
+          eq(cashFlowProjections.orgId, orgId),
+          eq(cashFlowProjections.projectionPeriodDays, projectionPeriodDays),
+          sql`${cashFlowProjections.generatedAt}::date = CURRENT_DATE`,
+        ),
+      )
+      .limit(1);
+
+    const writeValues = {
+      projectedData: projection.projectedDays,
+      confidenceLevel: projection.confidenceLevel,
+      minimumProjectedBalance: projection.minimumProjectedBalance,
+      riskDate: projection.riskDate,
+      generatedAt: new Date(),
+    };
+
+    if (existing) {
+      await tx
+        .update(cashFlowProjections)
+        .set(writeValues)
+        .where(eq(cashFlowProjections.id, existing.id));
+      return;
+    }
+
+    await tx.insert(cashFlowProjections).values({
+      orgId,
+      projectionPeriodDays,
+      ...writeValues,
+    });
+  });
 }

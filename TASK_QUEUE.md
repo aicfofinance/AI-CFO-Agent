@@ -2,8 +2,8 @@
 ## AI CFO Agent
 
 **Last updated:** 2026-07-29  
-**Current phase:** Phase 5 — Financial Data Layer + Cash Flow Projection  
-**Active agents:** 1 (backend-engineer on 5.0)  
+**Current phase:** Phase 6 — Proactive Intelligence Engine  
+**Active agents:** 0 (Phase 5 complete, Phase 6 starting)  
 
 ---
 
@@ -23,7 +23,6 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| Cash flow projection storage + API | 5.7 | ai-engine-engineer | 2026-07-29 |
 
 ---
 
@@ -89,6 +88,7 @@
 | format.ts (expedited) | — | 2026-07-29 | formatCurrency/formatPercent/formatDate. Unicode minus for negatives. Unblocks 5.8. |
 | AI financial context builder | 5.8 | 2026-07-29 | buildFinancialContext: 3-mo P&L+cash+top5 categories+AR aging. formatCurrency. <8000 chars, no nulls. 4/4 tests. tsc+lint exit 0. |
 | Financial summary API endpoint | 5.9 | 2026-07-29 | GET /api/financial/summary: Promise.all, standard envelope, FinancialSummaryResponse in api.ts. 46/46 tests. tsc+lint exit 0. |
+| Cash flow projection storage + API | 5.7 | 2026-07-29 | storeCashFlowProjection (db.transaction read-then-write). GET /api/cashflow/projection: 422 on <60d, confidenceLevel always present. 46/46 tests. tsc+lint exit 0. |
 
 ---
 
