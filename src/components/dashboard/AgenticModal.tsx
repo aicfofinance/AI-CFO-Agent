@@ -14,6 +14,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, Copy, CircleCheck } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -115,12 +116,16 @@ export function AgenticModal({
   headline,
   relatedData,
 }: AgenticModalProps): React.JSX.Element {
+  const router = useRouter();
+
   const [modalState, setModalState] = useState<ModalState>("confirm");
   const [draftData, setDraftData] = useState<DraftData | null>(null);
   // draftBody is the editable text in State 3; persists edits across state
   // transitions within the same modal session.
   const [draftBody, setDraftBody] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // markedAsSent is a V1 visual-only toggle — no API side effect.
+  const [markedAsSent, setMarkedAsSent] = useState(false);
 
   // Reset to confirm when the modal opens fresh (not on internal state changes).
   useEffect(() => {
@@ -129,6 +134,7 @@ export function AgenticModal({
       setDraftData(null);
       setDraftBody("");
       setErrorMessage(null);
+      setMarkedAsSent(false);
     }
   }, [open]);
 
@@ -210,6 +216,30 @@ export function AgenticModal({
   }
 
   function handleLooksGood(): void {
+    // Best-effort tracking PATCH — does not block the UX.
+    if (draftData !== null) {
+      void fetch(`/api/intelligence/actions/${draftData.draftId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "approved" }),
+      })
+        .then((res) => {
+          if (!res.ok) {
+            console.error({
+              event: "action_tracking_patch_failed",
+              targetStatus: "approved",
+              httpStatus: res.status,
+            });
+          }
+        })
+        .catch((err: unknown) => {
+          console.error({
+            event: "action_tracking_patch_network_error",
+            targetStatus: "approved",
+            error: err,
+          });
+        });
+    }
     setModalState("copy");
   }
 
@@ -230,10 +260,41 @@ export function AgenticModal({
       // The state still transitions to done — user may copy manually.
     }
 
+    // Best-effort tracking PATCH — fires regardless of clipboard success.
+    // Does not block the UX; copy success transitions to done unconditionally.
+    if (draftData !== null) {
+      void fetch(`/api/intelligence/actions/${draftData.draftId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "copied" }),
+      })
+        .then((res) => {
+          if (!res.ok) {
+            console.error({
+              event: "action_tracking_patch_failed",
+              targetStatus: "copied",
+              httpStatus: res.status,
+            });
+          }
+        })
+        .catch((err: unknown) => {
+          console.error({
+            event: "action_tracking_patch_network_error",
+            targetStatus: "copied",
+            error: err,
+          });
+        });
+    }
+
     setModalState("done");
   }
 
   function handleClose(): void {
+    // Refresh the feed when closing from the done state so the actioned finding
+    // disappears without requiring a manual page refresh (IMPLEMENTATION_PLAN 9.6).
+    if (modalState === "done") {
+      router.refresh();
+    }
     onOpenChange(false);
   }
 
@@ -506,9 +567,8 @@ export function AgenticModal({
 
         {/* ---------------------------------------------------------------- */}
         {/* State 5 — Done (confirmation)                                     */}
-        {/* NOTE: PATCH /api/intelligence/actions/:id is called here in       */}
-        {/* Step 9.6. This state renders the confirmation UI without the      */}
-        {/* action tracking call — that is added in the next step.            */}
+        {/* PATCH /api/intelligence/actions/:id with status:'copied' is fired */}
+        {/* in handleCopy() above (best-effort, non-blocking).                */}
         {/* ---------------------------------------------------------------- */}
         {modalState === "done" && (
           <div className="flex flex-col items-center gap-4 py-4 text-center">
@@ -517,10 +577,28 @@ export function AgenticModal({
 
             <CircleCheck size={40} className="text-[#15803D]" aria-hidden="true" />
             <span className="sr-only">Success:</span>
-            <p className="text-lg font-medium text-[var(--text-primary)]">Copied to clipboard</p>
+            <p className="text-lg font-medium text-[var(--text-primary)]">
+              &#10003; Copied to clipboard
+            </p>
             <p className="text-sm text-[var(--text-secondary)]">
               Open your email client, paste, and send.
             </p>
+
+            {/* Mark as sent toggle — V1 visual affordance only, no API side effect */}
+            <label className="flex cursor-pointer items-center gap-2 rounded border border-[var(--border-default)] bg-[var(--gray-50)] px-4 py-2.5 text-sm text-[var(--text-secondary)]">
+              <input
+                type="checkbox"
+                checked={markedAsSent}
+                onChange={(e) => setMarkedAsSent(e.target.checked)}
+                className="h-4 w-4 cursor-pointer accent-[var(--primary-500)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary-300)]"
+                aria-label="Mark as sent"
+              />
+              <span>Mark as sent</span>
+            </label>
+            <p className="text-xs text-[var(--text-muted)]">
+              This product never sends on your behalf.
+            </p>
+
             <Button autoFocus variant="ghost" size="sm" onClick={handleClose}>
               Close
             </Button>

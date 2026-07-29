@@ -23,7 +23,7 @@
 
 | Task | Step # | Agent | Started |
 |------|--------|-------|---------|
-| AgenticModal states 1+2 (confirm + loading) | 9.3 | product-engineer | 2026-07-30 |
+| AgenticModal State 5 + action tracking | 9.6 | product-engineer | 2026-07-30 |
 
 ---
 
@@ -31,8 +31,7 @@
 
 | Task | Step # | Owner | Depends On |
 |------|--------|-------|------------|
-| AgenticModal state 3 (review + inline edit) | 9.4 | product-engineer | 9.3 |
-| AgenticModal state 4 (copy) + no-email fallback | 9.5 | product-engineer | 9.4 |
+| Wire all agentic CTAs | 9.7 | product-engineer | 9.6, 8.5 |
 
 ---
 
@@ -116,6 +115,7 @@
 | Draft generation endpoint | 9.0 | 2026-07-29 | POST /findings/:id/draft-action. resolveActionType mapper. getModel(0.5), generateText, 429→503. Idempotent. Schema corrections: actionType+userId NOT NULL. tsc+lint exit 0. 142/142. commit 20e7ede |
 | Draft templates (3 action types) | 9.1 | 2026-07-30 | invoice-acceleration + subscription-cancellation + vendor-negotiation. 18 new tests (7+5+6). 160/160 total. tsc+lint exit 0. |
 | PATCH /api/intelligence/actions/:id | 9.2 | 2026-07-30 | draft→approved→copied legal transitions, dual write on copied (draft+finding actioned), 400 on illegal transitions. tsc+lint exit 0. |
+| AgenticModal states 1–4 (confirm+loading+review+copy) | 9.3–9.5 | 2026-07-30 | Five-state modal. AI disclaimer visible in State 3. CTA "Copy to clipboard". Null recipientEmail: literal TO: placeholder in copy text. tsc+lint exit 0. 160/160. commit 679dc13 |
 
 ---
 
