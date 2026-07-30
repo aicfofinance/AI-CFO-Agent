@@ -63,6 +63,10 @@ export const env = createEnv({
     // both the server (OAuth redirects, email links) and the client. Kept
     // optional until a runtime consumer exists (magic-link callback / OAuth).
     NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+    // Supabase public credentials — must be NEXT_PUBLIC_ so the browser bundle
+    // can initialise createBrowserClient() from createClientClient().
+    NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   },
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
@@ -89,6 +93,8 @@ export const env = createEnv({
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     FROM_EMAIL: process.env.FROM_EMAIL,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
   /**
    * Treat empty strings as undefined. `.env.example` ships optional keys with
