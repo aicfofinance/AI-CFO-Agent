@@ -57,7 +57,7 @@ const INTUIT_TOKEN_ENDPOINT = "https://oauth.platform.intuit.com/oauth2/v1/token
  * Must match exactly — including protocol, host, port, and path — in the
  * initiate route, this file, and the Intuit developer console.
  */
-const QB_REDIRECT_URI = "http://localhost:3000/api/auth/quickbooks/callback";
+const QB_REDIRECT_URI = `${env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/auth/quickbooks/callback`;
 
 /**
  * Zod schema for the Intuit token endpoint response.

@@ -43,10 +43,7 @@ const PKCE_COOKIE_MAX_AGE_SECONDS = 120;
  * Xero OAuth redirect URI. Must match exactly what is registered in the Xero
  * developer portal (protocol, host, port, and path).
  */
-const XERO_REDIRECT_URI =
-  env.NODE_ENV === "production"
-    ? "https://app.aicfoagent.com/api/auth/xero/callback"
-    : "http://localhost:3000/api/auth/xero/callback";
+const XERO_REDIRECT_URI = `${env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/auth/xero/callback`;
 
 export async function GET(request: Request): Promise<NextResponse> {
   const requestId = crypto.randomUUID();

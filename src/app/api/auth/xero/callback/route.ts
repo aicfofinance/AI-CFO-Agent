@@ -59,10 +59,7 @@ const PKCE_COOKIE_NAME = "xero_oauth_pkce";
  * Must match exactly — including protocol, host, port, and path — in both the
  * initiate route and this callback.
  */
-const XERO_REDIRECT_URI =
-  env.NODE_ENV === "production"
-    ? "https://app.aicfoagent.com/api/auth/xero/callback"
-    : "http://localhost:3000/api/auth/xero/callback";
+const XERO_REDIRECT_URI = `${env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/auth/xero/callback`;
 
 /** Zod schema for the JSON value stored in the PKCE cookie by the initiate route. */
 const pkceCookieSchema = z.object({

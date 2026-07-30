@@ -25,10 +25,10 @@ import { env } from "@/lib/env";
  * The OAuth redirect URI registered in the Intuit developer console.
  * Must match exactly — including protocol, host, port, and path.
  *
- * This is hardcoded for the localhost development environment.
- * Production deployment will use NEXT_PUBLIC_APP_URL (Step 4.2+).
+ * Derived from NEXT_PUBLIC_APP_URL so the same code works in local dev,
+ * preview deployments, and production without modification.
  */
-const QB_REDIRECT_URI = "http://localhost:3000/api/auth/quickbooks/callback";
+const QB_REDIRECT_URI = `${env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/auth/quickbooks/callback`;
 
 /**
  * Creates and returns a configured QuickBooks OAuthClient instance.
