@@ -82,6 +82,16 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
   const { pathname } = request.nextUrl;
 
+  // Supabase sometimes delivers the PKCE auth code to the root URL instead of
+  // the emailRedirectTo path. Catch it here and forward to the callback route
+  // so the code is always exchanged in one place regardless of where it lands.
+  const code = request.nextUrl.searchParams.get("code");
+  if (code && pathname !== "/api/auth/callback") {
+    const callbackUrl = request.nextUrl.clone();
+    callbackUrl.pathname = "/api/auth/callback";
+    return NextResponse.redirect(callbackUrl);
+  }
+
   // Unauthenticated → protected route: send to login, preserving the intended
   // destination in `next` so the app can return the user there post-login.
   if (!user && isProtectedPath(pathname)) {
