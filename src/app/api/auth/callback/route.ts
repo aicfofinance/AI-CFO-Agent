@@ -1,8 +1,8 @@
-import { redirect } from "next/navigation";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { env } from "@/lib/env";
 import { createServerClient } from "@/lib/platform/auth/supabase";
 import { db } from "@/lib/platform/db/client";
 import { connections, organizationMembers } from "@/lib/platform/db/schema";
@@ -22,25 +22,14 @@ import { connections, organizationMembers } from "@/lib/platform/db/schema";
  *   - returning + org, no connection      → `/onboarding/connect`
  *   - any failure (expired/invalid link, no session) → `/login?error=link_expired`
  *
- * "New" vs "returning" is decided by whether the user has an
- * `organization_members` row. The connection check is org-scoped
- * (`org_id = membership.orgId`), sourced only from the exchanged session — never
- * from a query param.
- *
- * `redirect()` throws the framework `NEXT_REDIRECT` control-flow signal, so it
- * is called exactly once at the top level, outside the try/catch in
- * `resolveTarget`. Wrapping it in the catch would swallow the redirect. All
- * fallible work (token exchange, DB lookups) happens inside `resolveTarget`,
- * which degrades every failure to the `link_expired` login redirect.
+ * Uses `NextResponse.redirect()` with an explicit absolute origin so that
+ * on Vercel — where the internal serverless function URL differs from the
+ * public-facing hostname — the Location header is always correct.
+ * `NEXT_PUBLIC_APP_URL` is the canonical source of that origin; it falls back
+ * to `request.nextUrl.origin` which Next.js populates from `x-forwarded-*`
+ * headers in production.
  */
 
-const LINK_EXPIRED = "/login?error=link_expired";
-
-/**
- * The Supabase `EmailOtpType` values accepted on the callback. Declared as a
- * `const` tuple (enums are forbidden by CLAUDE.md) and validated with Zod
- * because `type` is untrusted query-param input.
- */
 const EMAIL_OTP_TYPES = [
   "email",
   "magiclink",
@@ -52,8 +41,9 @@ const EMAIL_OTP_TYPES = [
 
 const TokenTypeSchema = z.enum(EMAIL_OTP_TYPES);
 
-async function resolveTarget(request: NextRequest): Promise<string> {
+async function resolveTarget(request: NextRequest, origin: string): Promise<string> {
   const requestId = crypto.randomUUID();
+  const linkExpired = `${origin}/login?error=link_expired`;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -70,22 +60,28 @@ async function resolveTarget(request: NextRequest): Promise<string> {
     if (tokenHash && typeParam) {
       const parsedType = TokenTypeSchema.safeParse(typeParam);
       if (!parsedType.success) {
-        return LINK_EXPIRED;
+        return linkExpired;
       }
       const { error } = await supabase.auth.verifyOtp({
         type: parsedType.data,
         token_hash: tokenHash,
       });
       if (error) {
-        return LINK_EXPIRED;
+        console.error({ event: "auth_otp_verify_failed", errorMessage: error.message, requestId });
+        return linkExpired;
       }
     } else if (code) {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
-        return LINK_EXPIRED;
+        console.error({
+          event: "auth_code_exchange_failed",
+          errorMessage: error.message,
+          requestId,
+        });
+        return linkExpired;
       }
     } else {
-      return LINK_EXPIRED;
+      return linkExpired;
     }
 
     // 2. Confirm the session resolves to a user (validated against the server).
@@ -94,7 +90,7 @@ async function resolveTarget(request: NextRequest): Promise<string> {
       error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-      return LINK_EXPIRED;
+      return linkExpired;
     }
 
     // 3. New vs returning: does the user belong to an organization yet?
@@ -105,7 +101,9 @@ async function resolveTarget(request: NextRequest): Promise<string> {
       .limit(1);
 
     if (!membership) {
-      return source === "bench" ? "/onboarding/migration?source=bench" : "/onboarding/migration";
+      return source === "bench"
+        ? `${origin}/onboarding/migration?source=bench`
+        : `${origin}/onboarding/migration`;
     }
 
     // 4. Returning with an org: route by whether a data source is connected.
@@ -116,18 +114,23 @@ async function resolveTarget(request: NextRequest): Promise<string> {
       .where(and(eq(connections.orgId, membership.orgId), eq(connections.isActive, true)))
       .limit(1);
 
-    return connection ? "/dashboard" : "/onboarding/connect";
+    return connection ? `${origin}/dashboard` : `${origin}/onboarding/connect`;
   } catch (error) {
     console.error({
       event: "auth_callback_failed",
       errorMessage: error instanceof Error ? error.message : String(error),
       requestId,
     });
-    return LINK_EXPIRED;
+    return `${origin}/login?error=link_expired`;
   }
 }
 
-export async function GET(request: NextRequest): Promise<never> {
-  const target = await resolveTarget(request);
-  redirect(target);
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  // Canonical public origin for redirect URLs. On Vercel the internal request
+  // URL may differ from the public-facing URL; NEXT_PUBLIC_APP_URL is the
+  // explicit override. Falls back to request.nextUrl.origin which Next.js
+  // populates from x-forwarded-host/proto in production.
+  const origin = env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
+  const target = await resolveTarget(request, origin);
+  return NextResponse.redirect(target);
 }
