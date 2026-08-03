@@ -32,6 +32,8 @@ import { getRequestContext, RequestContextError } from "@/lib/platform/auth/sess
 import { db } from "@/lib/platform/db/client";
 import { connections, dataQualityLog, syncJobs, transactions } from "@/lib/platform/db/schema";
 import { encryptToken } from "@/lib/platform/security/encryption";
+import { recomputeSnapshots } from "@/lib/financial/aggregations/dashboard";
+import { inngest } from "@/lib/inngest";
 import { parseQBCSV } from "@/lib/integrations/csv/parser";
 import { normalizeCSVRow } from "@/lib/integrations/csv/normalize";
 
@@ -253,6 +255,24 @@ export async function POST(request: Request): Promise<NextResponse> {
       recordsSynced: rowsImported,
       recordsSkipped: parsedRows.length - rowsImported,
     });
+
+    // ── Enrich: recompute dashboard snapshots + trigger the intelligence run ──
+    // Mirrors the QB/Xero sync pipeline (jobs/sync/single-org.ts) so a CSV
+    // import populates the dashboard snapshots and intelligence feed without a
+    // separate sync. Best-effort: the transactions are already committed, so a
+    // failure here is logged but must not fail the import response.
+    try {
+      await recomputeSnapshots(orgId);
+      await inngest.send({ name: "intelligence/run.requested", data: { orgId } });
+    } catch (enrichError) {
+      console.error({
+        event: "csv_upload_enrich_failed",
+        orgId,
+        connectionId,
+        errorMessage: enrichError instanceof Error ? enrichError.message : String(enrichError),
+        request_id,
+      });
+    }
 
     console.log({
       event: "csv_upload_complete",

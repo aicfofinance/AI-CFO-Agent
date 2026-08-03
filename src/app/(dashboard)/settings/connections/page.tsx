@@ -201,8 +201,13 @@ function ProviderCard({
 // --------------------------------------------------------------------------
 
 export default async function ConnectionsPage(): Promise<React.JSX.Element> {
-  const baseUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const cookie = (await headers()).get("cookie") ?? "";
+  const requestHeaders = await headers();
+  const cookie = requestHeaders.get("cookie") ?? "";
+  const host = requestHeaders.get("host");
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const baseUrl = host
+    ? `${proto}://${host}`
+    : (env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000");
 
   const res = await fetch(`${baseUrl}/api/connections`, {
     headers: { cookie },

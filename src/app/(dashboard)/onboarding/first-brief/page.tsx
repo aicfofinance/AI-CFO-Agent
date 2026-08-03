@@ -47,8 +47,13 @@ type FeedSuccess = {
 // ---------------------------------------------------------------------------
 
 export default async function FirstBriefPage(): Promise<React.JSX.Element> {
-  const baseUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const cookie = (await headers()).get("cookie") ?? "";
+  const requestHeaders = await headers();
+  const cookie = requestHeaders.get("cookie") ?? "";
+  const host = requestHeaders.get("host");
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const baseUrl = host
+    ? `${proto}://${host}`
+    : (env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000");
 
   let findings: FindingFeedItem[] = [];
 
