@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { env } from "@/lib/env";
 import { createServerClient } from "@/lib/platform/auth/supabase";
 import { db } from "@/lib/platform/db/client";
 import { connections, organizationMembers } from "@/lib/platform/db/schema";
@@ -22,12 +21,13 @@ import { connections, organizationMembers } from "@/lib/platform/db/schema";
  *   - returning + org, no connection      → `/onboarding/connect`
  *   - any failure (expired/invalid link, no session) → `/login?error=link_expired`
  *
- * Uses `NextResponse.redirect()` with an explicit absolute origin so that
- * on Vercel — where the internal serverless function URL differs from the
- * public-facing hostname — the Location header is always correct.
- * `NEXT_PUBLIC_APP_URL` is the canonical source of that origin; it falls back
- * to `request.nextUrl.origin` which Next.js populates from `x-forwarded-*`
- * headers in production.
+ * Redirect targets are built on the SAME public origin that served this
+ * request (`request.nextUrl.origin`, which Next.js derives from the
+ * `x-forwarded-host`/`x-forwarded-proto` headers Vercel sets). This keeps the
+ * post-auth redirect on the exact domain the user is browsing — production
+ * alias or preview deployment alike. It must NOT be pinned to a fixed
+ * `NEXT_PUBLIC_APP_URL`: a cross-domain hop would drop the session cookie
+ * (cookies are per-domain) and could land on a stale alias.
  */
 
 const EMAIL_OTP_TYPES = [
@@ -126,11 +126,11 @@ async function resolveTarget(request: NextRequest, origin: string): Promise<stri
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  // Canonical public origin for redirect URLs. On Vercel the internal request
-  // URL may differ from the public-facing URL; NEXT_PUBLIC_APP_URL is the
-  // explicit override. Falls back to request.nextUrl.origin which Next.js
-  // populates from x-forwarded-host/proto in production.
-  const origin = env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
+  // Redirect on the same public origin that served this request so the flow
+  // never hops domains (which would drop the just-set session cookie). On
+  // Vercel, request.nextUrl.origin resolves to the public host via the
+  // x-forwarded-* headers — for both the production alias and preview URLs.
+  const origin = request.nextUrl.origin;
   const target = await resolveTarget(request, origin);
   return NextResponse.redirect(target);
 }
