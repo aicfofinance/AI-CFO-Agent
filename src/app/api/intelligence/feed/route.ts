@@ -148,7 +148,9 @@ export async function GET(request: Request): Promise<NextResponse> {
     // Medium findings older than this instant are suppressed from the feed (Step
     // 14.2). Computed once so the page/count filter and the suppression-detection
     // query use the same cutoff.
-    const suppressionCutoff = new Date(Date.now() - MEDIUM_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000);
+    const suppressionCutoff = new Date(
+      Date.now() - MEDIUM_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
 
     // Both conditions are ALWAYS applied together (CLAUDE.md): active status and
     // the non-expired window. A `cash_flow_risk` finding past its risk date is no
