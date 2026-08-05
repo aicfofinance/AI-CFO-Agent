@@ -295,17 +295,24 @@ async function generateAndStoreFinding(input: {
   const model = getModel(0.5);
 
   try {
-    const { text: headline } = await generateText({
+    // Single call combining headline and detail to stay within free-tier rate limits.
+    const { text: combined } = await generateText({
       model,
-      prompt: input.headlinePrompt,
-      maxTokens: 60,
+      prompt:
+        input.headlinePrompt +
+        "\n\nThen on a new line write a 2-3 sentence explanation:\n" +
+        input.detailPrompt +
+        "\n\nRespond with exactly two labeled lines:\nHEADLINE: <alert headline, max 110 chars>\nDETAIL: <2-3 sentence explanation>",
+      maxTokens: 320,
     });
-
-    const { text: detail } = await generateText({
-      model,
-      prompt: input.detailPrompt,
-      maxTokens: 220,
-    });
+    const headlineMatch = /^HEADLINE:\s*(.+)/m.exec(combined);
+    const detailMatch = /^DETAIL:\s*([\s\S]+)/m.exec(combined);
+    const fallbackLines = combined
+      .trim()
+      .split("\n")
+      .filter((l) => l.trim().length > 0);
+    const headline = (headlineMatch?.[1] ?? fallbackLines[0] ?? "").trim().slice(0, 120);
+    const detail = (detailMatch?.[1] ?? fallbackLines.slice(1).join(" ") ?? headline).trim();
 
     await insertFindingDeduped({
       orgId: input.orgId,

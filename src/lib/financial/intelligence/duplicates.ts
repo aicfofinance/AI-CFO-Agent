@@ -224,7 +224,8 @@ export async function generateDuplicateSubscriptionFinding(
   const model = getModel(0.5);
 
   try {
-    const { text: headline } = await generateText({
+    // Single call combining headline and detail to stay within free-tier rate limits.
+    const { text: combined } = await generateText({
       model,
       prompt:
         `Write a single alert headline for a small-business finance dashboard. ` +
@@ -232,21 +233,25 @@ export async function generateDuplicateSubscriptionFinding(
         `("${pair.account1Name}" for $${pair.transaction1Amount} and "${pair.account2Name}" ` +
         `for $${pair.transaction2Amount}), suggesting a duplicate subscription. State that ` +
         `a possible duplicate charge was found. Keep it under 110 characters. Return only ` +
-        `the headline text, with no surrounding quotes and no preamble.`,
-      maxTokens: 60,
-    });
-
-    const { text: detail } = await generateText({
-      model,
-      prompt:
+        `the headline text, with no surrounding quotes and no preamble.` +
+        "\n\nThen on a new line write a 2-3 sentence explanation:\n" +
         `Write 2-3 plain-English sentences for a small-business owner about a possible ` +
         `duplicate subscription. The vendor "${pair.vendorName}" was charged on two ` +
         `different accounts — "${pair.account1Name}" for $${pair.transaction1Amount} and ` +
         `"${pair.account2Name}" for $${pair.transaction2Amount}. Explain that this may be a ` +
         `duplicate payment and suggest one concrete step to verify and cancel the extra ` +
-        `subscription. Do not give formal financial advice. Return only the explanation.`,
-      maxTokens: 220,
+        `subscription. Do not give formal financial advice. Return only the explanation.` +
+        "\n\nRespond with exactly two labeled lines:\nHEADLINE: <alert headline, max 110 chars>\nDETAIL: <2-3 sentence explanation>",
+      maxTokens: 320,
     });
+    const headlineMatch = /^HEADLINE:\s*(.+)/m.exec(combined);
+    const detailMatch = /^DETAIL:\s*([\s\S]+)/m.exec(combined);
+    const fallbackLines = combined
+      .trim()
+      .split("\n")
+      .filter((l) => l.trim().length > 0);
+    const headline = (headlineMatch?.[1] ?? fallbackLines[0] ?? "").trim().slice(0, 120);
+    const detail = (detailMatch?.[1] ?? fallbackLines.slice(1).join(" ") ?? headline).trim();
 
     await insertFindingDeduped({
       orgId,

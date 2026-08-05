@@ -557,28 +557,33 @@ export async function generateCashFlowRiskFinding(
   const model = getModel(0.5);
 
   try {
-    const { text: headline } = await generateText({
+    // Single call combining headline and detail to stay within free-tier rate limits.
+    const { text: combined } = await generateText({
       model,
       prompt:
         `Write a single alert headline for a small-business finance dashboard. ` +
         `The company's cash balance is projected to fall to a minimum of -$${shortfall} ` +
         `(negative) within the next 30 days. State the cash shortfall risk and that ` +
         `action is needed. Keep it under 110 characters. Return only the headline ` +
-        `text, with no surrounding quotes and no preamble.`,
-      maxTokens: 60,
-    });
-
-    const { text: detail } = await generateText({
-      model,
-      prompt:
+        `text, with no surrounding quotes and no preamble.` +
+        "\n\nThen on a new line write a 2-3 sentence explanation:\n" +
         `Write 2-3 plain-English sentences for a small-business owner explaining a ` +
         `projected cash shortfall. The projected minimum cash balance is -$${shortfall} ` +
         `within the next 30 days, with the shortfall first occurring on ${riskDateText}. ` +
         `Explain what this means for the business and suggest one concrete step, such as ` +
         `accelerating outstanding invoice collections or deferring a non-essential ` +
-        `expense. Do not give formal financial advice. Return only the explanation.`,
-      maxTokens: 220,
+        `expense. Do not give formal financial advice. Return only the explanation.` +
+        "\n\nRespond with exactly two labeled lines:\nHEADLINE: <alert headline, max 110 chars>\nDETAIL: <2-3 sentence explanation>",
+      maxTokens: 320,
     });
+    const headlineMatch = /^HEADLINE:\s*(.+)/m.exec(combined);
+    const detailMatch = /^DETAIL:\s*([\s\S]+)/m.exec(combined);
+    const fallbackLines = combined
+      .trim()
+      .split("\n")
+      .filter((l) => l.trim().length > 0);
+    const headline = (headlineMatch?.[1] ?? fallbackLines[0] ?? "").trim().slice(0, 120);
+    const detail = (detailMatch?.[1] ?? fallbackLines.slice(1).join(" ") ?? headline).trim();
 
     await insertFindingDeduped({
       orgId,
