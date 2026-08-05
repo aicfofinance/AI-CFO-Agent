@@ -46,7 +46,7 @@ export function getModel(complexityScore = 0.5): LanguageModelV1 {
   const provider = env.AI_PROVIDER ?? "google";
 
   if (provider === "google") {
-    return google(MODEL_IDS.google);
+    return google(MODEL_IDS.google, { apiKey: env.GOOGLE_AI_API_KEY });
   }
 
   // provider === "anthropic"
