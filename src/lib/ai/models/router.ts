@@ -46,7 +46,9 @@ export function getModel(complexityScore = 0.5): LanguageModelV1 {
   const provider = env.AI_PROVIDER ?? "google";
 
   if (provider === "google") {
-    const googleProvider = createGoogleGenerativeAI({ apiKey: env.GOOGLE_AI_API_KEY });
+    const googleProvider = env.GOOGLE_AI_API_KEY
+      ? createGoogleGenerativeAI({ apiKey: env.GOOGLE_AI_API_KEY })
+      : createGoogleGenerativeAI();
     return googleProvider(MODEL_IDS.google);
   }
 
