@@ -1,5 +1,5 @@
 import { anthropic } from "@ai-sdk/anthropic";
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { LanguageModelV1 } from "ai";
 
 import { env } from "@/lib/env";
@@ -46,7 +46,8 @@ export function getModel(complexityScore = 0.5): LanguageModelV1 {
   const provider = env.AI_PROVIDER ?? "google";
 
   if (provider === "google") {
-    return google(MODEL_IDS.google, { apiKey: env.GOOGLE_AI_API_KEY });
+    const googleProvider = createGoogleGenerativeAI({ apiKey: env.GOOGLE_AI_API_KEY });
+    return googleProvider(MODEL_IDS.google);
   }
 
   // provider === "anthropic"
