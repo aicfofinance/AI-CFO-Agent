@@ -178,7 +178,7 @@ async function fetchRecentExpenseCharges(orgId: string): Promise<DuplicateCharge
         eq(transactions.orgId, orgId),
         eq(transactions.transactionType, "expense"),
         isNotNull(transactions.description),
-        sql`${transactions.transactionDate} >= CURRENT_DATE - ${RECENT_WINDOW_DAYS}`,
+        sql`${transactions.transactionDate} >= CURRENT_DATE - ${sql.raw(String(RECENT_WINDOW_DAYS))}`,
       ),
     )
     .orderBy(transactions.description);

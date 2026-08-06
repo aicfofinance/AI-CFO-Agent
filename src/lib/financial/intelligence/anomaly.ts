@@ -201,7 +201,7 @@ export async function detectCollectionsSlippage(
         eq(transactions.orgId, orgId),
         eq(transactions.transactionType, "income"),
         eq(transactions.isReconciled, false),
-        sql`${transactions.transactionDate} < CURRENT_DATE - ${COLLECTIONS_SLIPPAGE_DAYS}`,
+        sql`${transactions.transactionDate} < CURRENT_DATE - ${sql.raw(String(COLLECTIONS_SLIPPAGE_DAYS))}`,
       ),
     );
 

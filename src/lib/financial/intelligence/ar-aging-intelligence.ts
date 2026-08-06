@@ -109,7 +109,7 @@ async function fetchOverdueInvoices(
     eq(transactions.orgId, orgId),
     eq(transactions.transactionType, "income"),
     eq(transactions.isReconciled, false),
-    sql`${transactions.transactionDate} < CURRENT_DATE - ${OVERDUE_AGE_DAYS}`,
+    sql`${transactions.transactionDate} < CURRENT_DATE - ${sql.raw(String(OVERDUE_AGE_DAYS))}`,
   );
 
   const rows = await db
