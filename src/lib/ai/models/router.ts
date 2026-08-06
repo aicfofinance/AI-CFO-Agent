@@ -25,9 +25,16 @@ const SONNET_COMPLEXITY_THRESHOLD = 0.7;
 
 const MODEL_IDS = {
   google: "gemini-2.0-flash",
-  anthropicComplex: "claude-sonnet-4-5",
+  anthropicComplex: "claude-sonnet-5",
   anthropicRoutine: "claude-haiku-4-5-20251001",
 } as const;
+
+// Hoisted once per cold start so createGoogleGenerativeAI() is not re-called on
+// every getModel() invocation. The Anthropic provider (imported above) is
+// already a module-level singleton — this makes the two providers consistent.
+const googleProvider = env.GOOGLE_AI_API_KEY
+  ? createGoogleGenerativeAI({ apiKey: env.GOOGLE_AI_API_KEY })
+  : createGoogleGenerativeAI();
 
 /**
  * Returns a language model instance for the configured provider.
@@ -45,19 +52,20 @@ const MODEL_IDS = {
 export function getModel(complexityScore = 0.5): LanguageModelV1 {
   const provider = env.AI_PROVIDER ?? "google";
 
-  if (provider === "google") {
-    const googleProvider = env.GOOGLE_AI_API_KEY
-      ? createGoogleGenerativeAI({ apiKey: env.GOOGLE_AI_API_KEY })
-      : createGoogleGenerativeAI();
-    return googleProvider(MODEL_IDS.google);
+  switch (provider) {
+    case "google":
+      return googleProvider(MODEL_IDS.google);
+    case "anthropic":
+      return complexityScore >= SONNET_COMPLEXITY_THRESHOLD
+        ? anthropic(MODEL_IDS.anthropicComplex)
+        : anthropic(MODEL_IDS.anthropicRoutine);
+    default:
+      // The env schema enforces z.enum(["anthropic","google"]) so this branch
+      // is unreachable in production, but an explicit throw catches a future
+      // misconfiguration (new provider added to env before the router handles
+      // it) rather than silently routing to Anthropic.
+      throw new Error(`Unknown AI_PROVIDER: "${String(provider)}"`);
   }
-
-  // provider === "anthropic"
-  if (complexityScore >= SONNET_COMPLEXITY_THRESHOLD) {
-    return anthropic(MODEL_IDS.anthropicComplex);
-  }
-
-  return anthropic(MODEL_IDS.anthropicRoutine);
 }
 
 const RATE_LIMIT_MESSAGE_PATTERNS = [
@@ -95,6 +103,11 @@ function extractStatus(error: Record<string, unknown>): number | undefined {
  * to a different provider) from a genuine failure. Detection is intentionally
  * permissive across error shapes because the AI SDK, the underlying fetch layer,
  * and provider SDKs surface rate limits differently.
+ *
+ * Skipping on rate-limit rather than retrying is intentional: these callers are
+ * Inngest background steps and a retry would replay the entire function, not
+ * just the failing step. The next scheduled intelligence run picks up where this
+ * one left off (CLAUDE.md — Intelligence Engine Rules).
  */
 export function detectRateLimitError(error: unknown): boolean {
   if (error === null || typeof error !== "object") {
@@ -113,6 +126,13 @@ export function detectRateLimitError(error: unknown): boolean {
     if (RATE_LIMIT_MESSAGE_PATTERNS.some((pattern) => normalized.includes(pattern))) {
       return true;
     }
+  }
+
+  // Walk the nested cause: modern fetch/AI SDK errors often wrap the underlying
+  // 429 in error.cause rather than surfacing it on the top-level object.
+  const cause = err["cause"];
+  if (cause !== null && typeof cause === "object") {
+    return detectRateLimitError(cause);
   }
 
   return false;
