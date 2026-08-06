@@ -72,6 +72,11 @@ export const syncSingleOrg = inngest.createFunction(
           await incrementalSync(connectionId);
         } else if (connection.provider === "xero") {
           await incrementalXeroSync(connectionId);
+        } else if (connection.provider === "csv") {
+          // CSV is a one-time import — no external API to poll. Skip the pull
+          // step cleanly so recompute-snapshots and trigger-intelligence-run
+          // still execute against the existing imported data.
+          console.log({ event: "sync_csv_pull_skipped", connectionId, orgId });
         } else {
           throw new Error(
             `SINGLE_ORG_UNKNOWN_PROVIDER: connectionId=${connectionId} ` +

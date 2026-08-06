@@ -34,6 +34,10 @@ export const syncFanOut = inngest.createFunction(
           eq(connections.isActive, true),
           ne(connections.syncStatus, "auth_expired"),
           ne(connections.syncStatus, "disconnected"),
+          // CSV is a one-time import — there is no external API to poll on a
+          // schedule. Exclude CSV connections so the fan-out never dispatches
+          // sync/org.requested events for them (avoids SINGLE_ORG_UNKNOWN_PROVIDER).
+          ne(connections.provider, "csv"),
         ),
       );
 
