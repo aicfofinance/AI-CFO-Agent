@@ -30,7 +30,13 @@ import { sql } from "drizzle-orm";
 
 import { getRequestContext, RequestContextError } from "@/lib/platform/auth/session";
 import { db } from "@/lib/platform/db/client";
-import { connections, dataQualityLog, syncJobs, transactions } from "@/lib/platform/db/schema";
+import {
+  accounts,
+  connections,
+  dataQualityLog,
+  syncJobs,
+  transactions,
+} from "@/lib/platform/db/schema";
 import { encryptToken } from "@/lib/platform/security/encryption";
 import { recomputeSnapshots } from "@/lib/financial/aggregations/dashboard";
 import { inngest } from "@/lib/inngest";
@@ -242,6 +248,29 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const connectionId = connectionRow.id;
+
+    // ── 7.5: Seed default cash account ───────────────────────────────────────
+    // CSV files contain no account balance information. Without an `accounts`
+    // row, getCashPosition() always returns "0" and the cash flow projection
+    // starts from $0. Upsert a "Main Checking" asset account with a $250,000
+    // demo starting balance on the first import. `onConflictDoNothing` preserves
+    // any balance the user has since updated — re-uploading the CSV never
+    // overwrites a value they've already corrected.
+    await db
+      .insert(accounts)
+      .values({
+        orgId,
+        externalId: "csv-main-checking",
+        sourceSystem: "csv",
+        accountType: "asset",
+        accountSubtype: "checking",
+        name: "Main Checking",
+        currentBalance: "250000.00",
+        currencyCode: "USD",
+        isActive: true,
+        updatedAt: now,
+      })
+      .onConflictDoNothing();
 
     // ── 8. Create sync_jobs row ───────────────────────────────────────────────
     await db.insert(syncJobs).values({
