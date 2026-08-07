@@ -90,6 +90,54 @@ function parseStreamChunk(chunk: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// localStorage persistence helpers
+// ---------------------------------------------------------------------------
+
+const LS_KEY = "cfolens_ask_session";
+
+type SavedSession = {
+  conversationId: string;
+  messages: ChatMessage[];
+};
+
+function loadSession(): SavedSession | null {
+  try {
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(LS_KEY) : null;
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      parsed !== null &&
+      typeof parsed === "object" &&
+      "conversationId" in parsed &&
+      "messages" in parsed &&
+      typeof (parsed as SavedSession).conversationId === "string" &&
+      Array.isArray((parsed as SavedSession).messages)
+    ) {
+      return parsed as SavedSession;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(conversationId: string, msgs: ChatMessage[]): void {
+  try {
+    window.localStorage.setItem(LS_KEY, JSON.stringify({ conversationId, messages: msgs }));
+  } catch {
+    // localStorage may be unavailable in some environments — silently ignore
+  }
+}
+
+function clearSession(): void {
+  try {
+    window.localStorage.removeItem(LS_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
@@ -249,22 +297,30 @@ function AskContent(): React.JSX.Element {
 
   // Parallel fetches on mount
   useEffect(() => {
-    // --- Conversation creation ---
-    fetch("/api/conversations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: "Q&A Session" }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`conversations POST returned ${res.status}`);
-        return res.json() as Promise<{ data: { id: string; title: string } }>;
+    // --- Conversation: restore from localStorage or create new ---
+    const saved = loadSession();
+    if (saved) {
+      // Restore previous session — no API call needed
+      setConversationId(saved.conversationId);
+      setMessages(saved.messages);
+    } else {
+      // No saved session — create a fresh conversation
+      fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "Q&A Session" }),
       })
-      .then((json) => {
-        setConversationId(json.data.id);
-      })
-      .catch(() => {
-        setConvError(true);
-      });
+        .then((res) => {
+          if (!res.ok) throw new Error(`conversations POST returned ${res.status}`);
+          return res.json() as Promise<{ data: { id: string; title: string } }>;
+        })
+        .then((json) => {
+          setConversationId(json.data.id);
+        })
+        .catch(() => {
+          setConvError(true);
+        });
+    }
 
     // --- Intelligence feed ---
     fetch("/api/intelligence/feed")
@@ -365,7 +421,11 @@ function AskContent(): React.JSX.Element {
           }
         }
 
-        setMessages((prev) => [...prev, { role: "assistant" as const, content: fullContent }]);
+        setMessages((prev) => {
+          const updated = [...prev, { role: "assistant" as const, content: fullContent }];
+          if (convId) saveSession(convId, updated);
+          return updated;
+        });
       } catch {
         // Network error or stream interruption
         setMessages((prev) => [
@@ -382,6 +442,34 @@ function AskContent(): React.JSX.Element {
     },
     [], // state setters are stable references — no external deps
   );
+
+  // Clears localStorage and starts a fresh conversation
+  function handleNewConversation(): void {
+    clearSession();
+    setMessages([]);
+    setConversationId(null);
+    setConvError(false);
+    setQueriesRemaining(null);
+    setQuotaExhausted(false);
+    autoSubmittedRef.current = false;
+    setDidAutoSubmit(false);
+
+    fetch("/api/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Q&A Session" }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`conversations POST returned ${res.status}`);
+        return res.json() as Promise<{ data: { id: string } }>;
+      })
+      .then((json) => {
+        setConversationId(json.data.id);
+      })
+      .catch(() => {
+        setConvError(true);
+      });
+  }
 
   // ---------------------------------------------------------------------------
   // Auto-submit when ?finding_id param resolves to a matched finding
@@ -455,11 +543,22 @@ function AskContent(): React.JSX.Element {
   return (
     <div className="flex flex-col gap-6">
       {/* Page header */}
-      <div className="border-b border-[var(--border-default)] pb-6">
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Ask CFO Lens</h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          Ask any question about your financial data.
-        </p>
+      <div className="flex items-start justify-between gap-4 border-b border-[var(--border-default)] pb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Ask CFO Lens</h1>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+            Ask any question about your financial data.
+          </p>
+        </div>
+        {messages.length > 0 && (
+          <button
+            type="button"
+            onClick={handleNewConversation}
+            className="shrink-0 rounded border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] transition-colors duration-100 hover:border-[var(--primary-300)] hover:text-[var(--primary-600)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary-500)]"
+          >
+            New conversation
+          </button>
+        )}
       </div>
 
       {/* Messages thread or empty-state area */}

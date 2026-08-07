@@ -72,10 +72,14 @@ export default async function IntelligenceFeedPage(): Promise<React.JSX.Element>
   // Captured before the fetch so both the 422 and the success paths share it.
   const fetchedAt = new Date().toISOString();
 
-  const res = await fetch(`${baseUrl}/api/intelligence/feed`, {
-    headers: { cookie },
-    cache: "no-store",
-  });
+  // Fetch active and resolved findings in parallel.
+  const [res, resolvedRes] = await Promise.all([
+    fetch(`${baseUrl}/api/intelligence/feed`, { headers: { cookie }, cache: "no-store" }),
+    fetch(`${baseUrl}/api/intelligence/feed?resolved=true`, {
+      headers: { cookie },
+      cache: "no-store",
+    }),
+  ]);
 
   // 401: session expired or not present — send to login
   if (res.status === 401) {
@@ -123,6 +127,21 @@ export default async function IntelligenceFeedPage(): Promise<React.JSX.Element>
 
   const { data: findings } = json;
 
+  // Resolved findings — silently empty if the request failed (non-critical)
+  let resolvedFindings: FindingFeedItem[] = [];
+  if (resolvedRes.ok) {
+    const resolvedJson = (await resolvedRes.json()) as FeedSuccess | FeedError;
+    if (!("error" in resolvedJson)) {
+      resolvedFindings = resolvedJson.data;
+    }
+  }
+
+  // Status label for resolved findings
+  const RESOLVED_STATUS_LABELS: Record<string, string> = {
+    actioned: "Actioned",
+    dismissed: "Dismissed",
+  };
+
   return (
     <div>
       {/* Header bar */}
@@ -136,7 +155,7 @@ export default async function IntelligenceFeedPage(): Promise<React.JSX.Element>
         </div>
       </div>
 
-      {/* Feed area */}
+      {/* Active findings */}
       {findings.length === 0 ? (
         <IntelligenceFeedHealthy />
       ) : (
@@ -144,6 +163,38 @@ export default async function IntelligenceFeedPage(): Promise<React.JSX.Element>
           {findings.map((finding) => (
             <FindingCard key={finding.id} {...finding} />
           ))}
+        </div>
+      )}
+
+      {/* Resolved findings — shown below active feed when any exist */}
+      {resolvedFindings.length > 0 && (
+        <div className="mt-10">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+            Resolved · {resolvedFindings.length}
+          </h2>
+          <div className="flex flex-col gap-2">
+            {resolvedFindings.map((finding) => (
+              <div
+                key={finding.id}
+                className="flex items-start justify-between gap-4 rounded-md border border-[var(--border-default)] bg-[var(--gray-50)] px-4 py-3 opacity-75"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-[var(--text-secondary)]">
+                    {finding.headline}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                    {new Date(finding.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full bg-[var(--gray-200)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
+                  {RESOLVED_STATUS_LABELS[finding.status] ?? finding.status}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

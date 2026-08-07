@@ -160,20 +160,20 @@ export default function BillingPage(): ReactElement {
           </p>
 
           <div className="mt-4">
-            <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              title="Contact us to upgrade your plan"
+            <a
+              href="mailto:ai.cfofinance@gmail.com?subject=CFO%20Lens%20upgrade%20enquiry"
               className={cn(
-                "rounded px-4 py-2 text-sm font-medium",
-                "bg-[var(--primary-500)] text-white",
-                "cursor-not-allowed opacity-50",
+                "inline-flex items-center rounded px-4 py-2 text-sm font-medium",
+                "bg-[var(--primary-500)] text-white transition-colors duration-100",
+                "hover:bg-[var(--primary-600)]",
                 "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary-500)]",
               )}
             >
               Contact sales
-            </button>
+            </a>
+            <p className="mt-2 text-xs text-[var(--text-muted)]">
+              Opens your email client to reach our team at ai.cfofinance@gmail.com
+            </p>
           </div>
         </div>
       </section>

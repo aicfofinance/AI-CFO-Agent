@@ -143,7 +143,60 @@ export async function GET(request: Request): Promise<NextResponse> {
   try {
     const { orgId } = await getRequestContext(request);
 
-    const cursor = decodeCursor(new URL(request.url).searchParams.get("cursor"));
+    const params = new URL(request.url).searchParams;
+
+    // ?resolved=true — return dismissed + actioned findings for the org.
+    // This powers the "Resolved" section on the Intelligence Feed page. It is a
+    // separate code path from the active feed: no cursor, no expiry filter, no
+    // medium suppression, no severity aggregation needed.
+    if (params.get("resolved") === "true") {
+      const resolvedRows = await db
+        .select({
+          id: findings.id,
+          findingType: findings.findingType,
+          severity: findings.severity,
+          headline: findings.headline,
+          detail: findings.detail,
+          recommendedAction: findings.recommendedAction,
+          relatedData: findings.relatedData,
+          status: findings.status,
+          createdAt: findings.createdAt,
+          expiresAt: findings.expiresAt,
+        })
+        .from(findings)
+        .where(and(eq(findings.orgId, orgId), sql`${findings.status} IN ('dismissed', 'actioned')`))
+        .orderBy(desc(findings.createdAt))
+        .limit(50);
+
+      const resolvedData: FindingFeedItem[] = resolvedRows.map((row) => ({
+        id: row.id,
+        findingType: row.findingType,
+        severity: row.severity,
+        headline: row.headline,
+        detail: row.detail,
+        recommendedAction: row.recommendedAction,
+        relatedData: row.relatedData,
+        status: row.status,
+        createdAt: row.createdAt.toISOString(),
+        expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
+        hasActionableType: ACTIONABLE_FINDING_TYPES.has(row.findingType),
+      }));
+
+      return NextResponse.json(
+        {
+          data: resolvedData,
+          meta: {
+            bySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
+            nextCursor: null,
+            total: resolvedData.length,
+            mediumFindingsSuppressed: false,
+          },
+        },
+        { status: 200 },
+      );
+    }
+
+    const cursor = decodeCursor(params.get("cursor"));
 
     // Medium findings older than this instant are suppressed from the feed (Step
     // 14.2). Computed once so the page/count filter and the suppression-detection
