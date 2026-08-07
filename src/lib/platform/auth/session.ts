@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 import { createServerClient } from "@/lib/platform/auth/supabase";
 import { db } from "@/lib/platform/db/client";
@@ -78,6 +78,7 @@ export async function getRequestContext(request: Request): Promise<RequestContex
     })
     .from(organizationMembers)
     .where(eq(organizationMembers.userId, userId))
+    .orderBy(desc(organizationMembers.createdAt))
     .limit(1);
 
   if (!membership) {

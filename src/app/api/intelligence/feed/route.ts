@@ -143,18 +143,6 @@ export async function GET(request: Request): Promise<NextResponse> {
   try {
     const { orgId } = await getRequestContext(request);
 
-    // TEMPORARY DIAGNOSTIC — remove after confirming feed works
-    const [rawCount] = await db
-      .select({ count: sql<number>`COUNT(*)::int` })
-      .from(findings)
-      .where(eq(findings.orgId, orgId));
-    console.error({
-      event: "intelligence_feed_diagnostic",
-      orgId,
-      rawCountForOrg: rawCount?.count ?? 0,
-      request_id,
-    });
-
     const cursor = decodeCursor(new URL(request.url).searchParams.get("cursor"));
 
     // Medium findings older than this instant are suppressed from the feed (Step
