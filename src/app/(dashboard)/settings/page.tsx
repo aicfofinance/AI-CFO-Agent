@@ -1,9 +1,10 @@
-import type { ReactElement } from "react";
+import { redirect } from "next/navigation";
 
-export default function SettingsPage(): ReactElement {
-  return (
-    <div>
-      <h1 className="text-3xl font-semibold text-gray-900">Settings</h1>
-    </div>
-  );
+/**
+ * /settings — immediately redirects to /settings/connections.
+ * The settings section layout renders the sub-page content; there is no
+ * meaningful content to show at the bare /settings path itself.
+ */
+export default function SettingsPage(): never {
+  redirect("/settings/connections");
 }
