@@ -7,6 +7,7 @@ import { intelligenceFanOut } from "@/jobs/intelligence/fan-out";
 import { intelligenceRun } from "@/jobs/intelligence/run";
 import { intelligenceEmail } from "@/jobs/intelligence/email";
 import { messageCleanup } from "@/jobs/billing/reset-quotas";
+import { monthlyReportCron, monthlyReportGenerate } from "@/jobs/reports/monthly";
 
 /**
  * Inngest serve handler — the single registration point for every Inngest
@@ -22,5 +23,7 @@ export const { GET, POST, PUT } = serve({
     intelligenceRun,
     intelligenceEmail,
     messageCleanup,
+    monthlyReportCron,
+    monthlyReportGenerate,
   ],
 });

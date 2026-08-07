@@ -27,6 +27,7 @@ type FindingFeedItem = {
   recommendedAction: string | null;
   relatedData: Record<string, unknown> | null;
   hasActionableType: boolean;
+  status: string;
   createdAt: string;
 };
 
