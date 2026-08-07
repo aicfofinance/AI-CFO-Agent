@@ -132,5 +132,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     path: "/",
   });
 
-  return NextResponse.json({ data: { authorizationUrl } });
+  // 302 redirect to the QuickBooks authorization page. The PKCE cookie set
+  // above is included in this response automatically by Next.js's cookies() API.
+  return NextResponse.redirect(authorizationUrl);
 }
